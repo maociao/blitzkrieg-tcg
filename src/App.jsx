@@ -22,7 +22,8 @@ import {
   Shield, 
   Wifi, 
   WifiOff, 
-  User 
+  User,
+  RefreshCw
 } from 'lucide-react';
 
 import { auth, db, appId } from './firebase';
@@ -64,6 +65,7 @@ export default function App() {
   
   // Zoom / Inspect Card State
   const [inspectCard, setInspectCard] = useState(null);
+  const [artSeed, setArtSeed] = useState(null);
   
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -97,6 +99,7 @@ export default function App() {
       
       const urlParams = new URLSearchParams(window.location.search);
       const isTestMode = urlParams.get('test') === 'true';
+      const isResetMode = urlParams.get('test') === 'reset';
       
       const starterDeck = [
         'inf_rifle', 'inf_rifle', 'inf_rifle', 
@@ -114,6 +117,18 @@ export default function App() {
             if (data.collection.length < allCards.length) {
                  await updateDoc(userRef, { collection: allCards, credits: 1000 });
                  showNotif("TEST MODE ACTIVATED: Collection Unlocked!");
+            }
+        } else if (isResetMode) {
+            // Reset if data deviates from starter
+            if (data.credits !== 100 || data.collection.length !== starterDeck.length) {
+                 await setDoc(userRef, {
+                    credits: 100,
+                    collection: starterDeck,
+                    wins: 0,
+                    losses: 0,
+                    username: data.username // Keep username
+                 });
+                 showNotif("ACCOUNT RESET: Back to basics.");
             }
         } else {
              // Normal Supply Drop
@@ -927,9 +942,18 @@ export default function App() {
 
         {/* Card Inspector Modal - Global */}
         {inspectCard && (
-          <Modal onClose={() => setInspectCard(null)}>
+          <Modal onClose={() => { setInspectCard(null); setArtSeed(null); }}>
              <div className="flex flex-col items-center">
-                <Card cardId={inspectCard.id} size="large" disabled />
+                <Card cardId={inspectCard.id} size="large" disabled customSeed={artSeed} allowFlip={true} />
+                {userData?.credits >= 1000 && (
+                  <button 
+                    onClick={() => setArtSeed(Date.now())}
+                    className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded font-bold shadow-lg flex items-center gap-2 transition-transform active:scale-95"
+                  >
+                    <RefreshCw size={16} />
+                    Regenerate Art (Test Mode)
+                  </button>
+                )}
              </div>
           </Modal>
         )}
