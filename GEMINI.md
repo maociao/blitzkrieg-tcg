@@ -1,18 +1,27 @@
 # Blitzkrieg TCG
 
 ## Project Overview
-Blitzkrieg TCG is a World War II-themed trading card game (TCG) being refactored from a single-file prototype (`blitzkrieg.js`) into a modern React application using Vite. It features real-time multiplayer combat, strategic deck building, and a player-driven economy.
+Blitzkrieg TCG is a World War II-themed trading card game (TCG) developed as a modern React application using Vite. It features real-time multiplayer combat, strategic deck building, and a player-driven economy.
 
-## Current Status (Refactoring)
-- **Migration In Progress:** The codebase is moving from `blitzkrieg.js` to a structured `src/` directory.
-- **Components:** `Card`, `CardArt`, and `Modal` have been extracted to `src/components/`.
-- **Views:** Game screens (`RenderHome`, `RenderLobby`, `GameView`, etc.) have been extracted to `src/views/`.
-- **Data:** Card definitions are now in `src/data/cards.js`.
-- **Firebase:** Configuration moved to `src/firebase.js`.
-- **Pending:**
-    - `src/main.jsx`: Entry point needs to be created.
-    - `src/App.jsx`: Main application logic (state, routing, Firebase listeners) needs to be migrated from `blitzkrieg.js`.
-    - `blitzkrieg.js`: To be deprecated once migration is complete.
+## Project Status: Complete
+The project has been successfully refactored from a single-file prototype (`blitzkrieg.js`) into a fully structured React application.
+
+**Live Deployment:** [https://blitzkrieg-tcg.web.app](https://blitzkrieg-tcg.web.app)
+
+### Architecture
+- **Source Code:** All application logic resides in `src/`.
+    - **Entry:** `src/main.jsx` & `src/App.jsx`.
+    - **Components:** Reusable UI elements in `src/components/`.
+    - **Views:** Game screens (`GameView`, `RenderLobby`, etc.) in `src/views/`.
+    - **Data:** Card definitions in `src/data/cards.js`.
+    - **Config:** Firebase setup in `src/firebase.js`.
+- **Legacy:** `blitzkrieg.js` is deprecated and preserved only for reference.
+
+### Key Features Implemented
+- **Multiplayer Logic:** Robust matchmaking with atomic join operations and lazy hand generation.
+- **Economy:** Fully functional Marketplace allowing users to list and buy cards with secure transactions.
+- **Visuals:** Dynamic visual effects engine for attacks, buffs, and card splashes.
+- **Security:** Comprehensive `firestore.rules` preventing unauthorized data access and logic exploitation.
 
 ## Core Features
 - **Multiplayer Combat:** Real-time matches with turn-based mechanics (Deployment, Combat, Support).
@@ -23,12 +32,39 @@ Blitzkrieg TCG is a World War II-themed trading card game (TCG) being refactored
 
 ## Technical Architecture
 - **Frontend:** React (Vite).
-- **Backend:** Firebase (Authentication, Firestore).
+- **Backend:** Firebase (Authentication, Firestore, Hosting).
 - **Styling:** Tailwind CSS.
 - **Icons:** Lucide React.
 - **Assets:** Dynamic image generation via Pollinations.ai.
 
 ## Setup Requirements
+To run this project locally:
 1.  Node.js and npm/yarn.
 2.  A Firebase project with Authentication (Anonymous) and Firestore enabled.
 3.  `.env` file with `VITE_FIREBASE_CONFIG`.
+4.  Run `npm install` and `npm run dev`.
+
+## Deployment
+This project is configured for Firebase Hosting.
+
+1.  **Install Firebase Tools:**
+    ```bash
+    npm install -g firebase-tools
+    ```
+2.  **Login to Firebase:**
+    ```bash
+    firebase login
+    ```
+3.  **Build the Project:**
+    ```bash
+    npm run build
+    ```
+4.  **Deploy:**
+    ```bash
+    firebase deploy
+    ```
+
+**Note:** If you only need to update the database security rules without redeploying the site, you can run:
+```bash
+firebase deploy --only firestore:rules
+```
