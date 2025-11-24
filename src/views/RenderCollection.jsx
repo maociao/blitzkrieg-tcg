@@ -24,7 +24,7 @@ const RenderCollection = ({ setView, userData, listCardForSale, setInspectCard }
       {sellMode && (
         <Modal onClose={() => setSellMode(null)}>
           <h3 className="text-xl font-bold mb-4 text-white">Sell {CARD_DATABASE[sellMode.id].name}</h3>
-          <div className="mb-4"><Card cardId={sellMode.id} size="medium" disabled /></div>
+          <div className="mb-4"><Card cardId={sellMode.id} size="medium" disabled showHoverOverlay={false} /></div>
           <input type="number" value={priceInput} onChange={(e) => setPriceInput(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded p-3 mb-4 text-white focus:border-green-500 outline-none" placeholder="Price" />
           <div className="flex space-x-4"><button onClick={() => { listCardForSale(sellMode.id, priceInput); setSellMode(null); }} className="flex-1 bg-green-600 hover:bg-green-500 py-3 rounded font-bold text-white shadow-lg">Confirm Listing</button></div>
         </Modal>

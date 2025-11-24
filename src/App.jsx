@@ -527,7 +527,7 @@ export default function App() {
     };
     const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id);
     await updateDoc(matchRef, update);
-    setTimeout(() => setIsProcessing(false), 1200); 
+    setTimeout(() => setIsProcessing(false), 1000); 
   };
 
   const handlePlayCard = async (cardId, index) => {

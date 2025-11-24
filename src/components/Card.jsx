@@ -11,10 +11,10 @@ import {
 import { CARD_DATABASE, RARITY_COLORS, getCardImageUrl } from '../data/cards';
 import CardArt from './CardArt';
 
-const Card = ({ cardId, onClick, disabled, size = 'normal', price = null, showStats = true, canAttack = true, isDeployed = false, isSelected = false, isAbilityUsed = false, currentAtk = null, currentDef = null, activeEffect = null, className = '', showHoverOverlay = true }) => {
+const Card = ({ cardId, onClick, disabled, size = 'normal', price = null, showStats = true, canAttack = true, isDeployed = false, isSelected = false, isAbilityUsed = false, currentAtk = null, currentDef = null, activeEffect = null, className = '', showHoverOverlay = true, showInspectHint = true }) => {
   const data = CARD_DATABASE[cardId] || CARD_DATABASE['inf_rifle'];
   const selectionClass = isSelected ? 'ring-4 ring-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.6)] scale-105 z-30' : '';
-  const baseClass = `relative flex flex-col rounded-lg border-2 p-2 transition-all duration-200 ${RARITY_COLORS[data.rarity]} ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:-translate-y-1 hover:shadow-lg cursor-pointer'} bg-gray-900 ${selectionClass} ${className} group`;
+  const baseClass = `relative flex flex-col rounded-lg border-2 p-2 transition-all duration-200 ${RARITY_COLORS[data.rarity]} ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:-translate-y-[1px] hover:shadow-lg cursor-pointer'} bg-gray-900 ${selectionClass} ${className} group`;
   
   const displayAtk = currentAtk !== null ? currentAtk : data.atk;
   const displayDef = currentDef !== null ? currentDef : data.def;
@@ -41,7 +41,7 @@ const Card = ({ cardId, onClick, disabled, size = 'normal', price = null, showSt
                 {data.supportEffect.type === 'buff_def' ? 'Fortify' : data.supportEffect.type === 'heal' ? 'Heal' : 'Buff'} (+{data.supportEffect.val})
             </div>
             )}
-            {!isDeployed && size === 'medium' && (
+            {!isDeployed && size === 'medium' && showInspectHint && (
                 <div className="mt-auto text-[10px] text-gray-500 flex items-center justify-center gap-1">
                     <ZoomIn size={10} /> Click to Inspect
                 </div>
@@ -90,7 +90,7 @@ const Card = ({ cardId, onClick, disabled, size = 'normal', price = null, showSt
       )}
       
       {price && (
-        <div className="absolute -top-2 -right-2 bg-green-600 text-white text-xs px-2 py-1 rounded-full shadow border border-green-400 z-20">
+        <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-green-600 text-white text-xs px-3 py-0.5 rounded shadow-md border border-green-400 z-20 font-mono font-bold">
           ${price}
         </div>
       )}
@@ -102,7 +102,7 @@ const Card = ({ cardId, onClick, disabled, size = 'normal', price = null, showSt
       )}
 
       {isAbilityUsed && (
-        <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-20 pointer-events-none rounded-lg backdrop-blur-[2px]">
+        <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-20 pointer-events-none rounded-lg backdrop-blur-[1px]">
           <span className="text-xs font-black text-red-500 border-2 border-red-500 px-2 py-1 -rotate-12 uppercase tracking-widest">Depleted</span>
         </div>
       )}

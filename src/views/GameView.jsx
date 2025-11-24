@@ -51,8 +51,8 @@ const GameView = ({
         </div>
       </div>
 
-      <div className="flex-1 bg-gradient-to-b from-gray-800 to-gray-900 p-4 flex justify-center items-center relative">
-          <div className={`absolute left-4 top-4 flex flex-col items-center cursor-crosshair transition-all ${isMyTurn ? 'hover:scale-110 opacity-100' : 'opacity-50'}`} onClick={() => {
+      <div className="flex-1 bg-gradient-to-b from-gray-800 to-gray-900 p-2 flex items-center relative overflow-hidden">
+          <div className={`absolute left-4 top-4 z-30 flex flex-col items-center cursor-crosshair transition-all ${isMyTurn ? 'hover:scale-110 opacity-100' : 'opacity-50'}`} onClick={() => {
               if (!isMyTurn) return;
               handleAttack(-1);
           }}>
@@ -60,9 +60,9 @@ const GameView = ({
             <div className="mt-1 bg-black/80 text-red-400 text-[10px] font-black px-2 py-0.5 rounded border border-red-800 tracking-widest">ENEMY HQ</div>
           </div>
 
-          <div className="flex space-x-2 items-end h-full pb-4 pl-24">
+          <div className="w-full h-full overflow-x-auto flex items-end space-x-2 pb-4 pl-28 no-scrollbar">
             {enemyBoard.map((u, i) => (
-              <div key={i} className={`relative group cursor-crosshair hover:scale-105 transition-transform`} onClick={() => handleBoardClick(u, i, true)}>
+              <div key={i} className={`relative group cursor-crosshair hover:scale-105 transition-transform min-w-max`} onClick={() => handleBoardClick(u, i, true)}>
                 <Card cardId={u.id} size="medium" className="pointer-events-none" isAbilityUsed={u.isAbilityUsed} isDeployed={true} canAttack={u.canAttack} currentAtk={u.atk} currentDef={u.def} activeEffect={visualEffects[u.instanceId]} />
                 <div className="absolute bottom-0 w-full bg-black/80 text-white text-xs text-center font-mono border-t border-red-900">HP: {u.currentHp}</div>
               </div>
@@ -72,21 +72,21 @@ const GameView = ({
 
       <div className="h-1 bg-black shadow-[0_0_20px_rgba(0,0,0,1)] z-20"></div>
 
-      <div className="flex-1 bg-gradient-to-t from-gray-800 to-gray-900 p-4 flex justify-center items-center relative">
-        <div className="absolute left-4 bottom-4 w-20 h-20 pointer-events-none opacity-0"></div>
-        <div className="flex space-x-2 items-start h-full pt-4 pl-24">
+      <div className="flex-1 bg-gradient-to-t from-gray-800 to-gray-900 p-2 flex items-center relative overflow-hidden">
+        <div className="absolute left-4 bottom-4 z-30 w-20 h-20 pointer-events-none opacity-0"></div>
+        <div className="w-full h-full overflow-x-auto flex items-start space-x-2 pt-4 pl-28 no-scrollbar">
             {myBoard.map((u, i) => (
-              <div key={i} className="relative group cursor-pointer hover:-translate-y-3 transition-all duration-200" onClick={() => handleBoardClick(u, i, false)}>
+              <div key={i} className="relative group cursor-pointer hover:-translate-y-3 transition-all duration-200 min-w-max" onClick={() => handleBoardClick(u, i, false)}>
                 <Card cardId={u.id} size="medium" canAttack={u.canAttack} isDeployed={true} isSelected={selectedUnitId === u.instanceId} isAbilityUsed={u.isAbilityUsed} currentAtk={u.atk} currentDef={u.def} activeEffect={visualEffects[u.instanceId]} />
                 <div className="absolute bottom-0 w-full bg-green-900/80 text-white text-xs text-center font-mono border-t border-green-500">HP: {u.currentHp}</div>
               </div>
             ))}
-            {myBoard.length === 0 && <div className="text-gray-600 font-mono text-sm italic">No units deployed</div>}
+            {myBoard.length === 0 && <div className="text-gray-600 font-mono text-sm italic pl-4 pt-8">No units deployed</div>}
         </div>
       </div>
 
-      <div className="h-52 bg-gray-950 border-t-4 border-gray-800 p-4 flex items-end space-x-4 overflow-x-auto z-30 shadow-2xl">
-        <div className="flex flex-col justify-between h-full min-w-[100px] mr-4 py-2">
+      <div className="h-64 bg-gray-950 border-t-4 border-gray-800 flex relative z-30 shadow-2xl">
+        <div className="flex-none w-28 flex flex-col justify-center gap-2 p-2 border-r border-gray-800 bg-gray-900/95 z-40">
             <div className="bg-blue-900/30 border border-blue-600/50 p-2 rounded text-center shadow-[0_0_15px_rgba(37,99,235,0.2)] backdrop-blur-md">
               <div className="text-[10px] text-blue-300 uppercase tracking-widest">Supplies</div>
               <div className="text-3xl font-black text-white">{myMana} <span className="text-sm text-gray-400 font-normal">/ {gameState.maxMana}</span></div>
@@ -97,11 +97,14 @@ const GameView = ({
             </div>
             <button onClick={handleEndTurn} disabled={!isMyTurn} className={`py-3 rounded font-bold uppercase text-sm transition-all shadow-lg ${isMyTurn ? 'bg-yellow-600 hover:bg-yellow-500 text-black hover:shadow-yellow-500/50' : 'bg-gray-800 text-gray-500'}`}>End Turn</button>
         </div>
-        {myHand.map((cardId, i) => (
-          <div key={i} className="hover:-translate-y-10 transition-transform duration-300 z-10">
-            <Card cardId={cardId} size="medium" onClick={() => handlePlayCard(cardId, i)} disabled={!isMyTurn || CARD_DATABASE[cardId].cost > myMana} />
-          </div>
-        ))}
+        
+        <div className="flex-1 flex items-center space-x-4 overflow-x-auto p-2 pb-4">
+            {myHand.map((cardId, i) => (
+            <div key={i} className="hover:-translate-y-2 transition-transform duration-300 z-10 min-w-max">
+                <Card cardId={cardId} size="medium" onClick={() => handlePlayCard(cardId, i)} disabled={!isMyTurn || CARD_DATABASE[cardId].cost > myMana} showInspectHint={false} />
+            </div>
+            ))}
+        </div>
       </div>
     </div>
   );
