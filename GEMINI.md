@@ -1,7 +1,18 @@
 # Blitzkrieg TCG
 
 ## Project Overview
-Blitzkrieg TCG is a World War II-themed trading card game (TCG) developed as a React application. It features real-time multiplayer combat, strategic deck building, and a player-driven economy.
+Blitzkrieg TCG is a World War II-themed trading card game (TCG) being refactored from a single-file prototype (`blitzkrieg.js`) into a modern React application using Vite. It features real-time multiplayer combat, strategic deck building, and a player-driven economy.
+
+## Current Status (Refactoring)
+- **Migration In Progress:** The codebase is moving from `blitzkrieg.js` to a structured `src/` directory.
+- **Components:** `Card`, `CardArt`, and `Modal` have been extracted to `src/components/`.
+- **Views:** Game screens (`RenderHome`, `RenderLobby`, `GameView`, etc.) have been extracted to `src/views/`.
+- **Data:** Card definitions are now in `src/data/cards.js`.
+- **Firebase:** Configuration moved to `src/firebase.js`.
+- **Pending:**
+    - `src/main.jsx`: Entry point needs to be created.
+    - `src/App.jsx`: Main application logic (state, routing, Firebase listeners) needs to be migrated from `blitzkrieg.js`.
+    - `blitzkrieg.js`: To be deprecated once migration is complete.
 
 ## Core Features
 - **Multiplayer Combat:** Real-time matches with turn-based mechanics (Deployment, Combat, Support).
@@ -11,14 +22,13 @@ Blitzkrieg TCG is a World War II-themed trading card game (TCG) developed as a R
 - **Visuals:** AI-generated card art (via Pollinations.ai) and dynamic visual effects.
 
 ## Technical Architecture
-- **Frontend:** React (Hooks, Functional Components).
-- **Backend:** Firebase (Authentication, Firestore for real-time state and data persistence).
-- **Styling:** Tailwind CSS (Inferred from utility classes).
+- **Frontend:** React (Vite).
+- **Backend:** Firebase (Authentication, Firestore).
+- **Styling:** Tailwind CSS.
 - **Icons:** Lucide React.
 - **Assets:** Dynamic image generation via Pollinations.ai.
 
 ## Setup Requirements
-To run this project locally, you will need:
 1.  Node.js and npm/yarn.
 2.  A Firebase project with Authentication (Anonymous) and Firestore enabled.
-3.  Tailwind CSS configuration.
+3.  `.env` file with `VITE_FIREBASE_CONFIG`.
