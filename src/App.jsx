@@ -14,7 +14,9 @@ import {
   deleteDoc, 
   addDoc, 
   serverTimestamp,
-  increment
+  increment,
+  query,
+  where
 } from 'firebase/firestore';
 import { 
   Shield, 
@@ -168,10 +170,14 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    const q = collection(db, 'artifacts', appId, 'public', 'data', 'transfers');
+    const q = query(
+      collection(db, 'artifacts', appId, 'public', 'data', 'transfers'),
+      where('to', '==', user.uid)
+    );
     const unsub = onSnapshot(q, (snapshot) => {
       snapshot.docs.forEach(async (d) => {
         const data = d.data();
+        // Double check not needed due to query, but good for safety
         if (data.to === user.uid) {
           try {
             await deleteDoc(d.ref);
@@ -332,7 +338,8 @@ export default function App() {
   };
 
   // --- Game Logic ---
-  
+  const joiningRef = useRef(false);
+
   useEffect(() => {
     if (view !== 'game' || !activeMatch) return;
     
@@ -347,25 +354,31 @@ export default function App() {
       const data = snap.data();
       
       if (!activeMatch.isHost && data.status === 'waiting') {
-         if (!data.guestId) {
-            await updateDoc(matchRef, {
-              guestId: user.uid,
-              guestName: userData.username,
-              status: 'active',
-              turn: 'host', 
-              hostHP: 20,
-              guestHP: 20,
-              hostMana: 1,
-              guestMana: 1,
-              maxMana: 1,
-              hostBoard: [], 
-              guestBoard: [],
-              hostHand: [],
-              guestHand: [],
-              lastEffects: [],
-              lastAction: 'Game Start'
-            });
-         } else if (data.guestId !== user.uid) {
+         if (!data.guestId && !joiningRef.current) {
+            joiningRef.current = true; // Prevent loop
+            try {
+              await updateDoc(matchRef, {
+                guestId: user.uid,
+                guestName: userData.username,
+                status: 'active',
+                turn: 'host', 
+                hostHP: 20,
+                guestHP: 20,
+                hostMana: 1,
+                guestMana: 1,
+                maxMana: 1,
+                hostBoard: [], 
+                guestBoard: [],
+                hostHand: [],
+                guestHand: [],
+                lastEffects: [],
+                lastAction: 'Game Start'
+              });
+            } catch (e) {
+              console.error("Join error:", e);
+              joiningRef.current = false; // Reset on error
+            }
+         } else if (data.guestId && data.guestId !== user.uid) {
             showNotif("Match is full!");
             handleLeaveClean();
          }
@@ -375,36 +388,6 @@ export default function App() {
     });
     return () => unsub();
   }, [view, activeMatch]);
-
-  // --- VISUAL EFFECTS ENGINE ---
-  useEffect(() => {
-    if (gameState && gameState.lastEffects) {
-      const effectsStr = JSON.stringify(gameState.lastEffects);
-      if (effectsStr !== prevEffectsRef.current) {
-        // New effects detected!
-        const newEffects = {};
-        gameState.lastEffects.forEach(fx => {
-          newEffects[fx.unitId] = { type: fx.type, id: fx.id || Date.now() }; // Add random ID for re-render
-        });
-        
-        setVisualEffects(newEffects);
-        
-        // Clear effects after 1.5s
-        setTimeout(() => {
-          setVisualEffects({});
-        }, 1500);
-
-        prevEffectsRef.current = effectsStr;
-      }
-    }
-  }, [gameState]);
-
-  useEffect(() => {
-    if (gameState && gameState.status === 'finished' && gameState.winner === user?.uid && !rewardClaimed) {
-      setRewardClaimed(true);
-      grantWinReward();
-    }
-  }, [gameState, user, rewardClaimed]);
 
   useEffect(() => {
     if (!gameState || !userData || gameState.status !== 'active') return;
@@ -447,6 +430,36 @@ export default function App() {
       updateDoc(matchRef, update);
     }
   }, [gameState && gameState.status]);
+
+  // --- VISUAL EFFECTS ENGINE ---
+  useEffect(() => {
+    if (gameState && gameState.lastEffects) {
+      const effectsStr = JSON.stringify(gameState.lastEffects);
+      if (effectsStr !== prevEffectsRef.current) {
+        // New effects detected!
+        const newEffects = {};
+        gameState.lastEffects.forEach(fx => {
+          newEffects[fx.unitId] = { type: fx.type, id: fx.id || Date.now() }; // Add random ID for re-render
+        });
+        
+        setVisualEffects(newEffects);
+        
+        // Clear effects after 1.5s
+        setTimeout(() => {
+          setVisualEffects({});
+        }, 1500);
+
+        prevEffectsRef.current = effectsStr;
+      }
+    }
+  }, [gameState]);
+
+  useEffect(() => {
+    if (gameState && gameState.status === 'finished' && gameState.winner === user?.uid && !rewardClaimed) {
+      setRewardClaimed(true);
+      grantWinReward();
+    }
+  }, [gameState, user, rewardClaimed]);
 
   // --- HQ Damage Calculation (LIFTED) ---
   const myHp = gameState ? (activeMatch?.isHost ? gameState.hostHP : gameState.guestHP) : null;

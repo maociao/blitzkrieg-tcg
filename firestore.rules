@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // User profile data - users can only read/write their own data
+    match /artifacts/{appId}/users/{userId}/account/profile {
+      allow read, write: if isOwner(userId);
+    }
+    
+    // Game matches
+    match /artifacts/{appId}/public/data/matches/{matchId} {
+      allow read: if isAuthenticated();
+      // Allow creation if the user is the host
+      allow create: if isAuthenticated() && isOwner(request.resource.data.hostId);
+      // Allow updates if:
+      // 1. User is the Host
+      // 2. User is the Guest
+      // 3. The match is 'waiting' (allows joining)
+      // 4. Guest slot is explicitly null/missing in the resource
+      allow update: if isAuthenticated() && (
+        isOwner(resource.data.hostId) || 
+        isOwner(resource.data.guestId) || 
+        resource.data.status == 'waiting'
+      );
+      allow delete: if isAuthenticated() && isOwner(resource.data.hostId);
+    }
+    
+    // Market listings
+    match /artifacts/{appId}/public/data/market/{listingId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(request.resource.data.sellerId);
+      // Allow delete if owner (cancel) OR if authenticated (buy)
+      // In a real app, this would be handled by a cloud function or transaction to verify purchase
+      allow delete: if isAuthenticated();
+      allow update: if isAuthenticated() && isOwner(resource.data.sellerId);
+    }
+    
+    // Credit transfers
+    match /artifacts/{appId}/public/data/transfers/{transferId} {
+      // Allow reading only if the user is the sender or receiver
+      // IMPORTANT: Client must query with .where('to', '==', uid) or .where('from', '==', uid)
+      allow read: if isAuthenticated() && 
+        (resource.data.to == request.auth.uid || resource.data.from == request.auth.uid);
+      allow create: if isAuthenticated();
+      // Allow receiver to delete (process) the transfer
+      allow delete: if isAuthenticated() && (resource.data.to == request.auth.uid || resource.data.from == request.auth.uid);
+    }
+    
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
