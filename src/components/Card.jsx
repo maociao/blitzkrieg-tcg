@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Shield, 
   Swords, 
@@ -6,12 +6,19 @@ import {
   ArrowUpCircle, 
   Flame, 
   Heart, 
-  Target 
+  Target,
+  Loader2,
+  WifiOff 
 } from 'lucide-react';
 import { CARD_DATABASE, RARITY_COLORS, getCardImageUrl } from '../data/cards';
 import CardArt from './CardArt';
+import { useGameContext } from '../context/GameContext';
 
 const Card = ({ cardId, onClick, disabled, size = 'normal', price = null, showStats = true, canAttack = true, isDeployed = false, isSelected = false, isAbilityUsed = false, currentAtk = null, currentDef = null, activeEffect = null, className = '', customSeed = null, allowFlip = false, showHoverOverlay = true, showInspectHint = true }) => {
+  const { artOverrides, artSeed } = useGameContext();
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  
   const data = CARD_DATABASE[cardId] || CARD_DATABASE['inf_rifle'];
   const selectionClass = isSelected ? 'ring-4 ring-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.6)] scale-105 z-30' : '';
   const baseClass = `relative rounded-lg transition-all duration-200 ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:-translate-y-[1px] hover:shadow-lg cursor-pointer'} bg-transparent ${selectionClass} ${className} group [perspective:1000px]`;
@@ -25,7 +32,15 @@ const Card = ({ cardId, onClick, disabled, size = 'normal', price = null, showSt
   else if (size === 'large') sizeClass = 'w-72 h-[28rem] text-base'; 
   else sizeClass = 'w-48 h-72 text-sm';
 
-  const imageUrl = getCardImageUrl(cardId, data.artPrompt, data.type, customSeed);
+  const effectiveSeed = customSeed || (artOverrides ? artOverrides[cardId] : null);
+  const imageUrl = getCardImageUrl(cardId, data.artPrompt, data.type, effectiveSeed);
+
+  useEffect(() => {
+    if (size === 'large') {
+        setIsLoading(true);
+        setHasError(false);
+    }
+  }, [imageUrl, size]);
 
   return (
     <div className={`${baseClass} ${sizeClass}`} onClick={!disabled ? onClick : undefined}>
@@ -61,14 +76,31 @@ const Card = ({ cardId, onClick, disabled, size = 'normal', price = null, showSt
             
             {size === 'large' ? (
               <div className="w-full h-64 rounded-md overflow-hidden relative mb-4 bg-gray-700 shrink-0">
+                  {(isLoading || (artSeed ? true : false)) && !hasError && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-800 z-10">
+                       <div className="w-full h-full absolute inset-0 bg-gradient-to-b from-transparent via-green-500/20 to-transparent animate-scan"></div>
+                       <Loader2 className="animate-spin text-green-500" size={32} />
+                    </div>
+                  )}
+                  {hasError && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-20 text-red-500 p-4 text-center">
+                       <WifiOff size={32} className="mb-2" />
+                       <span className="text-xs font-mono uppercase">Signal Lost</span>
+                       <span className="text-[10px] text-gray-500 mt-1">Image Gen Failed</span>
+                    </div>
+                  )}
                   <img 
+                    key={imageUrl}
                     src={imageUrl}
                     alt={data.name}
-                    className="w-full h-full object-cover"
+                    className={`w-full h-full object-cover transition-opacity duration-500 ${isLoading || hasError ? 'opacity-0' : 'opacity-100'}`}
+                    loading="lazy"
+                    onLoad={() => setIsLoading(false)}
+                    onError={() => { setIsLoading(false); setHasError(true); }}
                   />
               </div>
             ) : (
-              <CardArt type={data.type} id={cardId} artPrompt={data.artPrompt} customSeed={customSeed} />
+              <CardArt type={data.type} id={cardId} artPrompt={data.artPrompt} customSeed={customSeed || (artOverrides ? artOverrides[cardId] : null)} />
             )}
 
             <div className={`${size === 'large' ? 'text-sm' : 'text-[10px]'} text-gray-300 leading-tight overflow-hidden mb-1 px-1 z-10 flex-1`}>

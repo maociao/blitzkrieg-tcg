@@ -43,6 +43,11 @@ service cloud.firestore {
       allow delete: if isAuthenticated();
       allow update: if isAuthenticated() && isOwner(resource.data.sellerId);
     }
+
+    // Art Overrides (Global)
+    match /artifacts/{appId}/public/data/art_overrides/global {
+      allow read, write: if isAuthenticated();
+    }
     
     // Credit transfers
     match /artifacts/{appId}/public/data/transfers/{transferId} {

@@ -46,19 +46,19 @@ export const CARD_DATABASE = {
     id: 'event_airstrike', name: 'Air Strike', type: 'tactic', cost: 3, atk: 0, def: 0, rarity: 'uncommon',
     desc: 'Deal 2 dmg to all enemy units.', effect: 'aoe_2',
     history: 'Close air support became a decisive factor in Blitzkrieg tactics. Stuka dive bombers and Typhoons wreaked havoc on ground columns. The sound of the Stuka\'s "Jericho Trumpet" siren alone was enough to break morale.',
-    artPrompt: 'explosions battlefield airstrike bombs dropping ink watercolor sketch'
+    artPrompt: 'explosions ww2 battlefield airstrike bombs dropping ink watercolor sketch'
   },
   'legend_patton': {
     id: 'legend_patton', name: 'Gen. Patton', type: 'commander', cost: 7, atk: 5, def: 8, rarity: 'limited',
     desc: 'LIMITED EDITION. Legendary commander.',
     history: 'George S. Patton ("Old Blood and Guts") led the US Third Army across France at breakneck speed. Known for his aggressive philosophy: "A good plan violently executed now is better than a perfect plan executed next week."',
-    artPrompt: 'general patton portrait ww2 uniform rugged ink watercolor sketch'
+    artPrompt: 'ww2 general patton portrait uniform rugged ink watercolor sketch'
   },
   'legend_rommel': {
     id: 'legend_rommel', name: 'Desert Fox', type: 'commander', cost: 7, atk: 6, def: 7, rarity: 'limited',
     desc: 'LIMITED EDITION. Master tactician.',
     history: 'Erwin Rommel earned respect from both sides for his chivalry and tactical brilliance in the North African campaign. He was implicated in the plot against Hitler and forced to commit suicide. "Don\'t fight a battle if you don\'t gain anything by winning."',
-    artPrompt: 'erwin rommel german general desert uniform portrait ink watercolor sketch'
+    artPrompt: 'erwin rommel german ww2 general desert uniform portrait ink watercolor sketch'
   },
 
   // --- Support Cards (New) ---

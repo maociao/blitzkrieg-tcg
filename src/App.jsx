@@ -23,11 +23,14 @@ import {
   Wifi, 
   WifiOff, 
   User,
-  RefreshCw
+  RefreshCw,
+  Check,
+  X
 } from 'lucide-react';
 
 import { auth, db, appId } from './firebase';
 import { CARD_DATABASE } from './data/cards';
+import { GameProvider } from './context/GameContext';
 
 // Components
 import Card from './components/Card';
@@ -66,6 +69,7 @@ export default function App() {
   // Zoom / Inspect Card State
   const [inspectCard, setInspectCard] = useState(null);
   const [artSeed, setArtSeed] = useState(null);
+  const [artOverrides, setArtOverrides] = useState({});
   
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -88,6 +92,33 @@ export default function App() {
   const showNotif = (msg) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 3000);
+  };
+
+  // --- Global Art Overrides Sync ---
+  useEffect(() => {
+    if (!user) return;
+    // Fix: 'art_overrides' is a collection (5 segments), so we need a doc inside it ('global') to make 6 segments.
+    const artRef = doc(db, 'artifacts', appId, 'public', 'data', 'art_overrides', 'global');
+    const unsub = onSnapshot(artRef, (snap) => {
+        if (snap.exists()) {
+            setArtOverrides(snap.data());
+        }
+    });
+    return () => unsub();
+  }, [user]);
+
+  const saveArtOverride = async () => {
+      if (!inspectCard || !artSeed) return;
+      try {
+          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'art_overrides', 'global'), {
+              [inspectCard.id]: artSeed
+          }, { merge: true });
+          showNotif("Global Art Updated!");
+          setArtSeed(null);
+      } catch (e) {
+          console.error("Art save failed", e);
+          showNotif("Failed to save art.");
+      }
   };
 
   // --- User Data Sync & Test Mode ---
@@ -876,6 +907,7 @@ export default function App() {
   };
 
   return (
+    <GameProvider value={{ artOverrides, artSeed }}>
     <div className="w-full h-screen bg-gray-950 text-gray-100 font-sans flex flex-col">
       {/* Header */}
       <header className="h-14 bg-black flex items-center justify-between px-6 border-b border-gray-800 z-50">
@@ -946,13 +978,38 @@ export default function App() {
              <div className="flex flex-col items-center">
                 <Card cardId={inspectCard.id} size="large" disabled customSeed={artSeed} allowFlip={true} />
                 {userData?.credits >= 1000 && (
-                  <button 
-                    onClick={() => setArtSeed(Date.now())}
-                    className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded font-bold shadow-lg flex items-center gap-2 transition-transform active:scale-95"
-                  >
-                    <RefreshCw size={16} />
-                    Regenerate Art (Test Mode)
-                  </button>
+                  <div className="mt-4 flex gap-3">
+                    {!artSeed ? (
+                        <button 
+                            onClick={() => setArtSeed(Date.now())}
+                            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded font-bold shadow-lg flex items-center gap-2 transition-transform active:scale-95"
+                        >
+                            <RefreshCw size={16} />
+                            Regenerate Art (Test Mode)
+                        </button>
+                    ) : (
+                        <>
+                            <button 
+                                onClick={() => setArtSeed(null)}
+                                className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded font-bold shadow-lg flex items-center gap-2"
+                            >
+                                <X size={16} /> Cancel
+                            </button>
+                            <button 
+                                onClick={() => setArtSeed(Date.now())}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold shadow-lg flex items-center gap-2"
+                            >
+                                <RefreshCw size={16} /> Retry
+                            </button>
+                            <button 
+                                onClick={saveArtOverride}
+                                className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded font-bold shadow-lg flex items-center gap-2 animate-pulse"
+                            >
+                                <Check size={16} /> Save Global
+                            </button>
+                        </>
+                    )}
+                  </div>
                 )}
              </div>
           </Modal>
@@ -990,5 +1047,6 @@ export default function App() {
         {view === 'market' && <RenderMarket setView={setView} userData={userData} marketListings={marketListings} loading={loading} buyCard={buyCard} user={user} setInspectCard={setInspectCard} />}
       </main>
     </div>
+    </GameProvider>
   );
 }
