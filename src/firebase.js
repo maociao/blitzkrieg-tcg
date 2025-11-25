@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 // Configuration is loaded from environment variables
 // Expecting a JSON string for VITE_FIREBASE_CONFIG for backward compatibility with the original script style,
@@ -19,5 +20,6 @@ try {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 
 export const appId = import.meta.env.VITE_APP_ID || 'blitzkrieg-tcg';

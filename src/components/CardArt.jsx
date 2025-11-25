@@ -1,16 +1,61 @@
 import React, { useState, useEffect } from 'react';
 import { getCardImageUrl } from '../data/cards';
 import { Loader2, WifiOff } from 'lucide-react';
+import { storage } from '../firebase';
+import { ref, getDownloadURL, uploadBytes } from 'firebase/storage';
 
 const CardArt = ({ type, id, artPrompt, customSeed, className = 'h-24' }) => {
+  const [currentImageUrl, setCurrentImageUrl] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
-  const imageUrl = getCardImageUrl(id, artPrompt, type, customSeed);
+  
+  // Generate the pollination URL as a fallback/source
+  const pollinationUrl = getCardImageUrl(id, artPrompt, type, customSeed);
+  const storagePath = `card-art/${id}_${customSeed || 'default'}.jpg`;
 
   useEffect(() => {
+    let isMounted = true;
     setIsLoading(true);
     setHasError(false);
-  }, [imageUrl]);
+
+    const loadArt = async () => {
+      const storageRef = ref(storage, storagePath);
+      
+      try {
+        // 1. Try to get from Firebase Storage Cache
+        const cachedUrl = await getDownloadURL(storageRef);
+        if (isMounted) {
+            setCurrentImageUrl(cachedUrl);
+            setIsLoading(false);
+        }
+      } catch (error) {
+        // 2. If not found (or error), use Pollinations URL
+        if (isMounted) {
+            setCurrentImageUrl(pollinationUrl);
+        }
+
+        // 3. Attempt to Cache (Upload) in background
+        // Only attempt if it's a standard card (no custom seed) to save storage space
+        // and avoid caching every random variation.
+        if (!customSeed) {
+            try {
+                const response = await fetch(pollinationUrl);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    await uploadBytes(storageRef, blob);
+                    console.log(`[CardArt] Cached ${id} to Storage.`);
+                }
+            } catch (uploadErr) {
+                console.warn("[CardArt] Failed to cache image:", uploadErr);
+            }
+        }
+      }
+    };
+
+    loadArt();
+
+    return () => { isMounted = false; };
+  }, [id, artPrompt, type, customSeed, pollinationUrl, storagePath]);
 
   return (
     <div className={`w-full rounded-md overflow-hidden relative bg-gray-700 group-hover:shadow-inner transition-all ${className}`}>
@@ -25,15 +70,22 @@ const CardArt = ({ type, id, artPrompt, customSeed, className = 'h-24' }) => {
            <WifiOff size={20} />
         </div>
       )}
-      <img 
-        key={imageUrl}
-        src={imageUrl} 
-        alt={type}
-        className={`w-full h-full object-cover transition-all duration-500 ${isLoading || hasError ? 'opacity-0' : 'opacity-100 group-hover:scale-110'}`}
-        loading="lazy"
-        onLoad={() => setIsLoading(false)}
-        onError={() => { setIsLoading(false); setHasError(true); }}
-      />
+      {currentImageUrl && (
+        <img 
+            key={currentImageUrl}
+            src={currentImageUrl} 
+            alt={type}
+            className={`w-full h-full object-cover transition-all duration-500 ${isLoading || hasError ? 'opacity-0' : 'opacity-100 group-hover:scale-110'}`}
+            loading="lazy"
+            onLoad={() => setIsLoading(false)}
+            onError={() => { 
+                // If the cached URL failed (rare), maybe fallback to pollination? 
+                // For now just show error.
+                setIsLoading(false); 
+                setHasError(true); 
+            }}
+        />
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none"></div>
     </div>
   );
