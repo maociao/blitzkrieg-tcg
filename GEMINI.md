@@ -68,3 +68,8 @@ This project is configured for Firebase Hosting.
 ```bash
 firebase deploy --only firestore:rules
 ```
+
+## Development Workflow
+- **Commit Policy:** Only commit changes when requested by user.
+- **Deployment:** Always build and deploy when done making code changes.
+- **Verification:** Use Playwright to verify impact of changes.
