@@ -43,6 +43,42 @@ import RenderMarket from './views/RenderMarket';
 import RenderLobby from './views/RenderLobby';
 import GameView from './views/GameView';
 
+// Helper for Passive Effects
+const calculateBuffedBoard = (board) => {
+  if (!board) return [];
+  return board.map((unit, index) => {
+    let buffAtk = 0;
+    let buffDef = 0;
+    
+    // Check adjacent for Commanders (Patton/Rommel)
+    if (index > 0) {
+      const left = board[index - 1];
+      if (left.id === 'legend_patton' || left.id === 'legend_rommel') {
+         buffAtk += 2;
+         buffDef += 2;
+      }
+    }
+    if (index < board.length - 1) {
+      const right = board[index + 1];
+      if (right.id === 'legend_patton' || right.id === 'legend_rommel') {
+         buffAtk += 2;
+         buffDef += 2;
+      }
+    }
+
+    if (buffAtk === 0 && buffDef === 0) return unit;
+
+    return {
+      ...unit,
+      atk: unit.atk + buffAtk,
+      def: unit.def + buffDef,
+      // Visual only: Boost currentHp to match the def boost so they don't look damaged
+      // Real HP logic handles damage separately.
+      currentHp: unit.currentHp + buffDef 
+    };
+  });
+};
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState('home'); 
@@ -511,8 +547,13 @@ export default function App() {
   const myHp = gameState ? (activeMatch?.isHost ? gameState.hostHP : gameState.guestHP) : null;
   const enemyHp = gameState ? (activeMatch?.isHost ? gameState.guestHP : gameState.hostHP) : 0;
   const isMyTurn = gameState ? gameState.turn === (activeMatch?.isHost ? 'host' : 'guest') : false;
-  const myBoard = gameState ? (activeMatch?.isHost ? gameState.hostBoard : gameState.guestBoard) || [] : [];
-  const enemyBoard = gameState ? (activeMatch?.isHost ? gameState.guestBoard : gameState.hostBoard) || [] : [];
+  
+  const myBoardRaw = gameState ? (activeMatch?.isHost ? gameState.hostBoard : gameState.guestBoard) || [] : [];
+  const enemyBoardRaw = gameState ? (activeMatch?.isHost ? gameState.guestBoard : gameState.hostBoard) || [] : [];
+  
+  const myBoard = calculateBuffedBoard(myBoardRaw);
+  const enemyBoard = calculateBuffedBoard(enemyBoardRaw);
+
   const myHand = gameState ? (activeMatch?.isHost ? gameState.hostHand : gameState.guestHand) || [] : [];
   const myMana = gameState ? (activeMatch?.isHost ? gameState.hostMana : gameState.guestMana) : 0;
 
@@ -562,12 +603,27 @@ export default function App() {
       ...u,
       canAttack: true
     }));
+
+    // Passive: Field Hospital (Heal HQ)
+    const myBoardKey = isHost ? 'hostBoard' : 'guestBoard';
+    const myHpKey = isHost ? 'hostHP' : 'guestHP';
+    const myCurrentBoard = gameState[myBoardKey];
+    let newMyHp = gameState[myHpKey];
+    const medics = myCurrentBoard.filter(u => u.id === 'supp_medic');
+    if (medics.length > 0) {
+        newMyHp = Math.min(newMyHp + medics.length, 20);
+        if (newMyHp > gameState[myHpKey]) {
+            showNotif(`Field Hospital restored ${medics.length} HQ Health!`);
+        }
+    }
+
     const update = {
       turn: nextTurn,
       maxMana: nextMaxMana,
       hostMana: nextMaxMana,
       guestMana: nextMaxMana,
-      [nextPlayerBoardKey]: nextPlayerBoard, 
+      [nextPlayerBoardKey]: nextPlayerBoard,
+      [myHpKey]: newMyHp,
       lastAction: `Turn pass to ${nextTurn}`,
       lastEffects: [] 
     };
@@ -609,6 +665,22 @@ export default function App() {
     if (cardData.type === 'tactic') {
       if (cardData.effect === 'aoe_2') {
         const enemyBoardKey = isHost ? 'guestBoard' : 'hostBoard';
+        
+        // Passive: Radar Negation
+        const currentEnemyBoard = gameState[enemyBoardKey];
+        if (currentEnemyBoard.some(u => u.id === 'supp_radar')) {
+             showNotif("Air Strike intercepted by Radar!");
+             const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id);
+             await updateDoc(matchRef, {
+               [handKey]: newHand,
+               [manaKey]: gameState[manaKey] - cardData.cost,
+               lastAction: `${isHost?'Host':'Guest'} Air Strike negated by Radar!`,
+               lastEffects: []
+             });
+             setTimeout(() => setIsProcessing(false), 1000);
+             return;
+        }
+
         // Calc damage
         const enemyBoard = [...gameState[enemyBoardKey]];
         const fxList = [];
@@ -739,13 +811,19 @@ export default function App() {
 
     const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id);
     
-    const myBoard = [...gameState[myBoardKey]];
+    // Use Buffed Boards for Stats Calculation (Commanders etc)
+    const myBoardRaw = [...gameState[myBoardKey]];
+    const myBoardBuffed = calculateBuffedBoard(myBoardRaw);
+    
     let attacker;
+    let attackerIndex = -1;
 
     if (selectedUnitId) {
-      attacker = myBoard.find(u => u.instanceId === selectedUnitId);
+      attacker = myBoardBuffed.find(u => u.instanceId === selectedUnitId);
+      attackerIndex = myBoardRaw.findIndex(u => u.instanceId === selectedUnitId);
     } else {
-      attacker = myBoard.find(u => u.canAttack && u.type !== 'support');
+      attacker = myBoardBuffed.find(u => u.canAttack && u.type !== 'support');
+      attackerIndex = myBoardRaw.findIndex(u => u.canAttack && u.type !== 'support');
     }
 
     if (!attacker) {
@@ -763,30 +841,48 @@ export default function App() {
 
     setIsProcessing(true);
 
-    const myUnitIndex = myBoard.findIndex(u => u.instanceId === attacker.instanceId);
-    if (myUnitIndex !== -1) {
-      myBoard[myUnitIndex].canAttack = false;
+    if (attackerIndex !== -1) {
+      myBoardRaw[attackerIndex].canAttack = false;
     }
 
-    let update = { [myBoardKey]: myBoard };
+    let update = { [myBoardKey]: myBoardRaw };
     const fxList = []; 
     const uniqueFxId = Date.now();
 
     fxList.push({ unitId: attacker.instanceId, type: 'action_attack', id: uniqueFxId });
 
     if (targetIndex === -1) {
-      const newEnemyHp = gameState[enemyHpKey] - attacker.atk;
-      update[enemyHpKey] = newEnemyHp;
-      update.lastAction = `${attacker.name} attacked Command Post!`;
-      update.lastEffects = fxList; // Attacker effect only
+      // Passive: Bunker Intercept
+      const enemyBoardRaw = [...gameState[enemyBoardKey]];
+      const bunkerIndex = enemyBoardRaw.findIndex(u => u.id === 'supp_bunker');
 
-      if (newEnemyHp <= 0) {
-        update.status = 'finished';
-        update.winner = user.uid;
+      if (bunkerIndex !== -1) {
+          const bunker = enemyBoardRaw[bunkerIndex];
+          bunker.currentHp -= attacker.atk; // Attacker uses buffed ATK
+          
+          showNotif("Bunker absorbed the attack!");
+          fxList.push({ unitId: bunker.instanceId, type: 'damage', id: uniqueFxId + 1 });
+          
+          update[enemyBoardKey] = enemyBoardRaw;
+          update.lastAction = `${attacker.name} hit Bunker (Guard)!`;
+          update.lastEffects = fxList;
+      } else {
+          const newEnemyHp = gameState[enemyHpKey] - attacker.atk;
+          update[enemyHpKey] = newEnemyHp;
+          update.lastAction = `${attacker.name} attacked Command Post!`;
+          update.lastEffects = fxList; 
+
+          if (newEnemyHp <= 0) {
+            update.status = 'finished';
+            update.winner = user.uid;
+          }
       }
     } else {
-      const enemyBoard = [...gameState[enemyBoardKey]];
-      const target = enemyBoard[targetIndex];
+      const enemyBoardRaw = [...gameState[enemyBoardKey]];
+      const enemyBoardBuffed = calculateBuffedBoard(enemyBoardRaw);
+      
+      const target = enemyBoardRaw[targetIndex];
+      const targetBuffed = enemyBoardBuffed[targetIndex];
       
       if (target.invulnerable) {
         showNotif("Target is INVULNERABLE!");
@@ -801,19 +897,19 @@ export default function App() {
       fxList.push({ unitId: target.instanceId, type: 'damage', id: uniqueFxId + 2 }); 
       
       if (target.currentHp > 0) {
-        // Recoil only if target survived
-        if (myUnitIndex !== -1) {
-           myBoard[myUnitIndex].currentHp -= target.atk;
+        // Recoil
+        if (attackerIndex !== -1) {
+           myBoardRaw[attackerIndex].currentHp -= targetBuffed.atk; // Target uses buffed ATK
            // FIX 1: Show recoil damage ONLY if enemy had attack power
-           if (target.atk > 0) {
+           if (targetBuffed.atk > 0) {
               fxList.push({ unitId: attacker.instanceId, type: 'damage', id: uniqueFxId + 3 });
            }
         }
       }
 
       // FIX 2: DELAYED DEATH - Keep units in array for animation
-      update[enemyBoardKey] = enemyBoard;
-      update[myBoardKey] = myBoard; 
+      update[enemyBoardKey] = enemyBoardRaw;
+      update[myBoardKey] = myBoardRaw; 
       
       update.lastAction = `${attacker.name} engaged ${target.name}`;
       update.lastEffects = fxList;
@@ -822,20 +918,22 @@ export default function App() {
     await updateDoc(matchRef, update);
     setSelectedUnitId(null); 
 
-    // Delayed Cleanup Step
-    if (targetIndex !== -1) {
-       setTimeout(async () => {
-          const cleanEnemy = update[enemyBoardKey].filter(u => u.currentHp > 0);
-          const cleanMy = update[myBoardKey].filter(u => u.currentHp > 0);
+    // Delayed Cleanup Step (Always run to catch Bunker deaths too)
+    setTimeout(async () => {
+        const finalEnemy = update[enemyBoardKey] || [...gameState[enemyBoardKey]];
+        const finalMy = update[myBoardKey];
 
-          if (cleanEnemy.length !== update[enemyBoardKey].length || cleanMy.length !== update[myBoardKey].length) {
-             await updateDoc(matchRef, {
-               [enemyBoardKey]: cleanEnemy,
-               [myBoardKey]: cleanMy
-             });
-          }
-       }, 1000);
-    }
+        const cleanEnemy = finalEnemy.filter(u => u.currentHp > 0);
+        const cleanMy = finalMy.filter(u => u.currentHp > 0);
+
+        if (cleanEnemy.length !== finalEnemy.length || cleanMy.length !== finalMy.length) {
+            await updateDoc(matchRef, {
+            [enemyBoardKey]: cleanEnemy,
+            [myBoardKey]: cleanMy
+            });
+        }
+    }, 1000);
+    
     setTimeout(() => setIsProcessing(false), 1200); 
   };
 

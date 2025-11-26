@@ -13,12 +13,14 @@
 - [ ] Reinforcements: When all cards have been played from hand and barracks. replenish barracks with all non-deployed cards, and then refresh player's hand from barracks.
 
 ### Card effect adjustments
-- [ ] Reduce Radar Station cost to 3
-- [ ] Reduce Bunker cost to 2
-- [ ] Reduce Field Hospital cost to 1
+- [x] Reduce Radar Station cost to 3
+- [x] Reduce Bunker cost to 2
+- [x] Reduce Field Hospital cost to 1
 
 ### New Passive cards
-- [ ] While a Concrete Bunker is deployed it takes damage instead of the HQ when the HQ is targeted
-- [ ] Radars negate Air Raid effect
-- [ ] Field Hospital heals HQ +1 up to max HP each round it is deployed on the field
-- [ ] Commander cards give +2/+2 to adjacent units
+- [x] While a Concrete Bunker is deployed it takes damage instead of the HQ when the HQ is targeted
+- [x] Radars negate Air Raid effect
+- [x] Field Hospital heals HQ +1 up to max HP each round it is deployed on the field
+- [x] Commander cards give +2/+2 to adjacent units
+- [ ] Supply Truck one time active effect restores up to 4 supplies (click on card to reveal "use" button). passive gives all units +1 attack.
+- [ ] Forward HQ passive gives all units +1/+1; No active effect; Invlunerable - HP is infinite

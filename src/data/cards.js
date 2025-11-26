@@ -50,27 +50,27 @@ export const CARD_DATABASE = {
   },
   'legend_patton': {
     id: 'legend_patton', name: 'Gen. Patton', type: 'commander', cost: 7, atk: 5, def: 8, rarity: 'limited',
-    desc: 'LIMITED EDITION. Legendary commander.',
+    desc: 'Passive: +2/+2 to adjacent units.',
     history: 'George S. Patton ("Old Blood and Guts") led the US Third Army across France at breakneck speed. Known for his aggressive philosophy: "A good plan violently executed now is better than a perfect plan executed next week."',
     artPrompt: 'ww2 general patton portrait uniform rugged ink watercolor sketch'
   },
   'legend_rommel': {
     id: 'legend_rommel', name: 'Desert Fox', type: 'commander', cost: 7, atk: 6, def: 7, rarity: 'limited',
-    desc: 'LIMITED EDITION. Master tactician.',
+    desc: 'Passive: +2/+2 to adjacent units.',
     history: 'Erwin Rommel earned respect from both sides for his chivalry and tactical brilliance in the North African campaign. He was implicated in the plot against Hitler and forced to commit suicide. "Don\'t fight a battle if you don\'t gain anything by winning."',
     artPrompt: 'erwin rommel german ww2 general desert uniform portrait ink watercolor sketch'
   },
 
   // --- Support Cards (New) ---
   'supp_bunker': {
-    id: 'supp_bunker', name: 'Concrete Bunker', type: 'support', cost: 3, atk: 0, def: 8, rarity: 'common',
-    desc: 'Fortifies a unit (+3 Max HP & Heal).', supportEffect: {type: 'buff_def', val: 3},
+    id: 'supp_bunker', name: 'Concrete Bunker', type: 'support', cost: 2, atk: 0, def: 8, rarity: 'common',
+    desc: 'Passive: Absorb HQ damage. Active: Fortify (+3 HP).', supportEffect: {type: 'buff_def', val: 3},
     history: 'The Atlantic Wall was a system of coastal fortifications built by Nazi Germany, featuring thousands of concrete bunkers. Despite the concrete and steel, they were static targets for naval bombardment and aerial bombing.',
     artPrompt: 'ww2 concrete bunker defensive normandy ink watercolor sketch'
   },
   'supp_medic': {
-    id: 'supp_medic', name: 'Field Hospital', type: 'support', cost: 2, atk: 0, def: 4, rarity: 'common',
-    desc: 'Heals a unit (+4 HP up to Max).', supportEffect: {type: 'heal', val: 4},
+    id: 'supp_medic', name: 'Field Hospital', type: 'support', cost: 1, atk: 0, def: 4, rarity: 'common',
+    desc: 'Passive: Heal HQ +1/turn. Active: Heal unit (+4 HP).', supportEffect: {type: 'heal', val: 4},
     history: 'Field medics and hospitals saved countless lives. Penicillin was mass-produced for the first time, drastically reducing infection deaths. "The real heroes of the war are the men who carry the stretchers." - Combat Veteran',
     artPrompt: 'ww2 red cross medical tent field hospital ink watercolor sketch'
   },
@@ -81,8 +81,8 @@ export const CARD_DATABASE = {
     artPrompt: 'ww2 army truck cargo supplies mud ink watercolor sketch'
   },
   'supp_radar': {
-    id: 'supp_radar', name: 'Radar Station', type: 'support', cost: 4, atk: 0, def: 5, rarity: 'rare',
-    desc: 'Precision targeting (+1 ATK).', supportEffect: {type: 'buff_atk', val: 1},
+    id: 'supp_radar', name: 'Radar Station', type: 'support', cost: 3, atk: 0, def: 5, rarity: 'rare',
+    desc: 'Passive: Negate Air Strikes. Active: Target (+1 ATK).', supportEffect: {type: 'buff_atk', val: 1},
     history: 'RADAR (RAdio Detection And Ranging) gave the RAF a critical advantage in the Battle of Britain, allowing them to scramble fighters to intercept raids. It was a closely guarded secret that changed the nature of warfare.',
     artPrompt: 'ww2 radar antenna dish radio tower ink watercolor sketch'
   },
