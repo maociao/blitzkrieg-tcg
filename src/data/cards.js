@@ -76,7 +76,7 @@ export const CARD_DATABASE = {
   },
   'supp_supply': {
     id: 'supp_supply', name: 'Supply Truck', type: 'support', cost: 2, atk: 0, def: 3, rarity: 'uncommon',
-    desc: 'Resupplies ammo (+2 ATK).', supportEffect: {type: 'buff_atk', val: 2},
+    desc: 'Passive: All units +1 ATK. Active: Fully Restore Supplies.', activeAbility: 'restore_mana_full',
     history: 'The "Red Ball Express" was a massive truck convoy system that supplied Allied forces moving quickly through Europe after D-Day. At its peak, it operated 5,958 vehicles and carried about 12,500 tons of supplies a day.',
     artPrompt: 'ww2 army truck cargo supplies mud ink watercolor sketch'
   },
@@ -88,7 +88,7 @@ export const CARD_DATABASE = {
   },
   'supp_hq': {
     id: 'supp_hq', name: 'Forward HQ', type: 'support', cost: 6, atk: 0, def: 10, rarity: 'limited',
-    desc: 'Invulnerable. Commands (+1/+1).', supportEffect: {type: 'buff_all', val: 1}, invulnerable: true,
+    desc: 'Passive: All units +1/+1. Invulnerable.', invulnerable: true,
     history: 'Field headquarters coordinated vast movements of troops. Communications were key, often using encrypted Enigma machines or Navajo code talkers. "Amateurs talk strategy. Professionals talk logistics." - Gen. Omar Bradley',
     artPrompt: 'ww2 generals map table command tent strategy ink watercolor sketch'
   },

@@ -46,9 +46,24 @@ import GameView from './views/GameView';
 // Helper for Passive Effects
 const calculateBuffedBoard = (board) => {
   if (!board) return [];
+  
+  // 1. Calculate Global Buffs first
+  let globalAtk = 0;
+  let globalDef = 0;
+  
+  board.forEach(u => {
+    if (u.id === 'supp_supply') {
+        globalAtk += 1;
+    }
+    if (u.id === 'supp_hq') {
+        globalAtk += 1;
+        globalDef += 1;
+    }
+  });
+
   return board.map((unit, index) => {
-    let buffAtk = 0;
-    let buffDef = 0;
+    let buffAtk = globalAtk;
+    let buffDef = globalDef;
     
     // Check adjacent for Commanders (Patton/Rommel)
     if (index > 0) {
@@ -727,6 +742,52 @@ export default function App() {
     setTimeout(() => setIsProcessing(false), lockTime);
   };
 
+  const handleUseAbility = async (unit) => {
+    if (isProcessing) return;
+    const isHost = activeMatch.isHost;
+    if (gameState.turn !== (isHost ? 'host' : 'guest')) {
+        showNotif("Not your turn!");
+        return;
+    }
+    if (unit.isAbilityUsed) {
+        showNotif("Ability already used!");
+        return;
+    }
+    if (!unit.activeAbility) return;
+
+    setIsProcessing(true);
+    const myBoardKey = isHost ? 'hostBoard' : 'guestBoard';
+    const myBoard = [...gameState[myBoardKey]];
+    const unitIndex = myBoard.findIndex(u => u.instanceId === unit.instanceId);
+    
+    if (unitIndex === -1) { setIsProcessing(false); return; }
+
+    const update = {};
+    const fxList = [];
+    const uniqueFxId = Date.now();
+
+    if (unit.activeAbility === 'restore_mana_full') {
+        const manaKey = isHost ? 'hostMana' : 'guestMana';
+        const maxMana = gameState.maxMana; 
+        
+        update[manaKey] = maxMana;
+        update.lastAction = `${unit.name} fully resupplied forces!`;
+        fxList.push({ unitId: unit.instanceId, type: 'action_buff', id: uniqueFxId });
+        showNotif(`Supplies Fully Restored!`);
+    }
+
+    // Mark used
+    myBoard[unitIndex].isAbilityUsed = true;
+    myBoard[unitIndex].canAttack = false; // Using ability consumes action
+    update[myBoardKey] = myBoard;
+    update.lastEffects = fxList;
+
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id), update);
+    
+    setSelectedUnitId(null);
+    setTimeout(() => setIsProcessing(false), 1000);
+  };
+
   const handleSupportAction = async (supportUnit, targetUnit, targetIndex) => {
     if (isProcessing) return;
     const isHost = activeMatch.isHost;
@@ -745,6 +806,13 @@ export default function App() {
     if (targetUnit.type === 'support') {
       showNotif("Cannot support another Support unit!");
       return;
+    }
+    
+    // Check if unit has a support effect (Passive-only supports cannot act)
+    if (!supportUnit.supportEffect) {
+       // Optional: Show notification or just return
+       // showNotif("This unit has no active support ability."); 
+       return;
     }
 
     setIsProcessing(true);
@@ -1136,6 +1204,7 @@ export default function App() {
              handleBoardClick={handleBoardClick}
              handlePlayCard={handlePlayCard}
              handleEndTurn={handleEndTurn}
+             handleUseAbility={handleUseAbility}
              CARD_DATABASE={CARD_DATABASE}
              hqHitAnim={null} // Removed localized animation for global overlay
              isProcessing={isProcessing}

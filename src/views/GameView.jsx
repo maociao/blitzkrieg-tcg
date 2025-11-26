@@ -6,7 +6,7 @@ const GameView = ({
   gameState, user, activeMatch, myMana, myHp, enemyHp, myHand, myBoard, enemyBoard, 
   selectedUnitId, visualEffects, isMyTurn,
   handleCancelMatch, handleSurrender, handleLeaveClean, handleAttack, handleBoardClick, 
-  handlePlayCard, handleEndTurn, CARD_DATABASE, 
+  handlePlayCard, handleEndTurn, handleUseAbility, CARD_DATABASE, 
   isProcessing 
 }) => {
   
@@ -28,6 +28,8 @@ const GameView = ({
       if (hp <= 14) return 'bg-yellow-600/50 border-yellow-500';
       return 'bg-green-900/30 border-green-600/50'; 
   };
+
+  const selectedUnit = selectedUnitId ? myBoard.find(u => u.instanceId === selectedUnitId) : null;
 
   if (gameState.status === 'finished') {
     return (
@@ -77,7 +79,17 @@ const GameView = ({
         <div className="w-full h-full overflow-x-auto flex items-start space-x-2 pt-4 pl-28 no-scrollbar">
             {myBoard.map((u, i) => (
               <div key={i} className="relative group cursor-pointer hover:-translate-y-3 transition-all duration-200 min-w-max" onClick={() => handleBoardClick(u, i, false)}>
-                <Card cardId={u.id} size="medium" canAttack={u.canAttack} isDeployed={true} isSelected={selectedUnitId === u.instanceId} isAbilityUsed={u.isAbilityUsed} currentAtk={u.atk} currentDef={u.def} activeEffect={visualEffects[u.instanceId]} />
+                <Card 
+                    cardId={u.id} 
+                    size="medium" 
+                    canAttack={u.canAttack} 
+                    isDeployed={true} 
+                    isSelected={selectedUnitId === u.instanceId} 
+                    isAbilityUsed={u.isAbilityUsed} 
+                    currentAtk={u.atk} 
+                    currentDef={u.def} 
+                    activeEffect={visualEffects[u.instanceId]}
+                />
                 <div className="absolute bottom-0 w-full bg-green-900/80 text-white text-xs text-center font-mono border-t border-green-500">HP: {u.currentHp}</div>
               </div>
             ))}
@@ -87,14 +99,30 @@ const GameView = ({
 
       <div className="h-64 bg-gray-950 border-t-4 border-gray-800 flex relative z-30 shadow-2xl">
         <div className="flex-none w-28 flex flex-col justify-center gap-2 p-2 border-r border-gray-800 bg-gray-900/95 z-40">
-            <div className="bg-blue-900/30 border border-blue-600/50 p-2 rounded text-center shadow-[0_0_15px_rgba(37,99,235,0.2)] backdrop-blur-md">
-              <div className="text-[10px] text-blue-300 uppercase tracking-widest">Supplies</div>
+            {/* Supplies Panel - Handles Active Ability Click */}
+            <div 
+               onClick={() => {
+                  if (selectedUnit && selectedUnit.activeAbility && !selectedUnit.isAbilityUsed && isMyTurn) {
+                      handleUseAbility(selectedUnit);
+                  }
+               }}
+               className={`border p-2 rounded text-center backdrop-blur-md transition-all duration-300 ${
+                  (selectedUnit && selectedUnit.activeAbility && !selectedUnit.isAbilityUsed && isMyTurn) 
+                  ? 'bg-purple-900/50 border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.5)] cursor-pointer hover:bg-purple-800/60 animate-pulse' 
+                  : 'bg-blue-900/30 border-blue-600/50 shadow-[0_0_15px_rgba(37,99,235,0.2)]'
+               }`}
+            >
+              <div className={`text-[10px] uppercase tracking-widest ${(selectedUnit && selectedUnit.activeAbility && !selectedUnit.isAbilityUsed) ? 'text-purple-300 font-bold' : 'text-blue-300'}`}>
+                 {(selectedUnit && selectedUnit.activeAbility && !selectedUnit.isAbilityUsed && isMyTurn) ? 'CLICK TO RESTORE' : 'Supplies'}
+              </div>
               <div className="text-3xl font-black text-white">{myMana} <span className="text-sm text-gray-400 font-normal">/ {gameState.maxMana}</span></div>
             </div>
+
             <div className={`border p-2 rounded text-center backdrop-blur-md transition-colors duration-300 ${getHealthBarClass(myHp)}`}>
               <div className={`text-[10px] uppercase tracking-widest ${myHp <= 9 ? 'text-white' : 'text-green-300'}`}>Health</div>
               <div className="text-3xl font-black text-white">{myHp}</div>
             </div>
+            
             <button onClick={handleEndTurn} disabled={!isMyTurn} className={`py-3 rounded font-bold uppercase text-sm transition-all shadow-lg ${isMyTurn ? 'bg-yellow-600 hover:bg-yellow-500 text-black hover:shadow-yellow-500/50' : 'bg-gray-800 text-gray-500'}`}>End Turn</button>
         </div>
         

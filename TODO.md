@@ -1,12 +1,18 @@
 # TODO
 
 ## UI Tweaks
+- [ ] Fix Air Strike notification
+    - If attack is successful do not show the notification to player playing the card
+    - If attack fails due to opponent having a Radar Tower then show the card to both players with a big X and notification.
+    - Reduce the duration of the notification from 6 seconds to 1.2
+    - Fix notification z to appear with card instead of behind blur overlay 
 
 ## Refactor
 - [ ] Reduce size of App.jsx
 
 ## New functionality
 - [ ] Add AI opponent for solo play.
+- [ ] Cleanup zombie matches & prevent joining own matches.
 
 ## New game mechanics:
 - [ ] Reinforcements: When a player's hand runs out of cards, replenish their hand from barracks; each card can only be played once from barracks, including starting hand, until all cards have been played.
@@ -22,5 +28,5 @@
 - [x] Radars negate Air Raid effect
 - [x] Field Hospital heals HQ +1 up to max HP each round it is deployed on the field
 - [x] Commander cards give +2/+2 to adjacent units
-- [ ] Supply Truck one time active effect restores up to 4 supplies (click on card to reveal "use" button). passive gives all units +1 attack.
-- [ ] Forward HQ passive gives all units +1/+1; No active effect; Invlunerable - HP is infinite
+- [x] Supply Truck one time active effect restores up to 4 supplies (click on card to reveal "use" button). passive gives all units +1 attack.
+- [x] Forward HQ passive gives all units +1/+1; No active effect; Invlunerable - HP is infinite
