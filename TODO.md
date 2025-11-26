@@ -10,9 +10,13 @@
 
 ## Refactor
 - [ ] Reduce size of App.jsx
+- [x] AI should use existing handlers (handleEndTurn, handlePlayCard, handleUseAbility, handleSupportAction, handleAttack, etc.)
+- [x] Add player hand count to AI prompt.
+- [x] Add card description to cards on board for AI prompt.
+- [x] Add last action to AI prompt
 
 ## New functionality
-- [ ] Add AI opponent for solo play.
+- [x] Add AI opponent for solo play.
 
 ## Bugs
 - [X] Cleanup zombie matches & Implement TTL logic
@@ -24,13 +28,18 @@
 - [ ] Reinforcements: When a player's hand runs out of cards, replenish their hand from barracks; each card can only be played once from barracks, including starting hand, until all cards have been played.
 - [ ] Reinforcements: When all cards have been played from hand and barracks. replenish barracks with all non-deployed cards, and then refresh player's hand from barracks.
 - [ ] Attacking card must have attack HIGHER than the defending card's Defense to avoid a counter attack; if attack = defense, a counter attack occurs.
+- [ ] Contrete bunker and Field Hospital buffs only apply to infantry units
+- [ ] New engineer support unit heals tanks and air units
 
 ### Card effect adjustments
 - [x] Reduce Radar Station cost to 3
 - [x] Reduce Bunker cost to 2
 - [x] Reduce Field Hospital cost to 1
-- [ ] Reduce cost of Sherman and Panzer tanks to 3
-- [ ] Reduce cost of Tiger tanks to 4
+- [x] Reduce cost of Sherman and Panzer tanks to 3
+- [X] Reduce cost of Tiger tanks to 4
+- [X] Increase P-51 Mustang HP to 4
+- [X] Reduce cost of Commanders to 6
+- [X] Reduce cost of Forward HQ to 5
 
 ### New Passive cards
 - [x] While a Concrete Bunker is deployed it takes damage instead of the HQ when the HQ is targeted

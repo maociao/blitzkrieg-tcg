@@ -13,19 +13,19 @@ export const CARD_DATABASE = {
     artPrompt: 'ww2 sniper ghillie suit aiming rifle forest ink watercolor sketch'
   },
   'tank_sherman': {
-    id: 'tank_sherman', name: 'M4 Sherman', type: 'tank', cost: 4, atk: 3, def: 4, rarity: 'common',
+    id: 'tank_sherman', name: 'M4 Sherman', type: 'tank', cost: 3, atk: 3, def: 4, rarity: 'common',
     desc: 'Reliable medium tank.',
     history: 'The M4 Sherman was the workhorse of the Western Allies. While outgunned by heavy German armor, its reliability, numbers, and logistics support won the war. Over 49,000 were produced. Crews nicknamed it the "Ronson" because it "lights up the first time, every time" – a grim reference to its tendency to catch fire.',
     artPrompt: 'ww2 sherman tank dusty road combat ink watercolor sketch'
   },
   'tank_panzer': {
-    id: 'tank_panzer', name: 'Panzer IV', type: 'tank', cost: 4, atk: 4, def: 3, rarity: 'uncommon',
+    id: 'tank_panzer', name: 'Panzer IV', type: 'tank', cost: 3, atk: 4, def: 3, rarity: 'uncommon',
     desc: 'Balanced german armor.',
     history: 'The only German tank to remain in production throughout the entire war. It served as the backbone of the Panzer divisions. Originally designed as an infantry support tank, it was up-gunned to fight other tanks. "The engine is the weapon of the tank." - Heinz Guderian',
     artPrompt: 'ww2 german panzer tank desert camouflage ink watercolor sketch'
   },
   'tank_tiger': {
-    id: 'tank_tiger', name: 'Tiger I', type: 'tank', cost: 6, atk: 6, def: 6, rarity: 'rare',
+    id: 'tank_tiger', name: 'Tiger I', type: 'tank', cost: 4, atk: 6, def: 6, rarity: 'rare',
     desc: 'Heavy armor beast.',
     history: 'Feared by Allied crews, the Tiger I featured thick armor and a devastating 88mm gun. However, it was mechanically complex and prone to breakdowns. A single Tiger could hold off a dozen Shermans, but they were often defeated by fuel shortages and their own weight.',
     artPrompt: 'ww2 tiger tank heavy armor imposing ink watercolor sketch'
@@ -37,7 +37,7 @@ export const CARD_DATABASE = {
     artPrompt: 'ww2 spitfire fighter plane flying clouds ink watercolor sketch'
   },
   'air_mustang': {
-    id: 'air_mustang', name: 'P-51 Mustang', type: 'air', cost: 5, atk: 5, def: 3, rarity: 'rare',
+    id: 'air_mustang', name: 'P-51 Mustang', type: 'air', cost: 4, atk: 5, def: 3, rarity: 'rare',
     desc: 'Long range escort.',
     history: 'Fitted with the Merlin engine, the P-51 had the range to escort bombers deep into Germany, changing the course of the air war. "When I saw Mustangs over Berlin, I knew the jig was up." - Hermann Göring',
     artPrompt: 'ww2 p51 mustang silver fighter plane blue sky ink watercolor sketch'
@@ -49,13 +49,13 @@ export const CARD_DATABASE = {
     artPrompt: 'explosions ww2 battlefield airstrike bombs dropping ink watercolor sketch'
   },
   'legend_patton': {
-    id: 'legend_patton', name: 'Gen. Patton', type: 'commander', cost: 7, atk: 5, def: 8, rarity: 'limited',
+    id: 'legend_patton', name: 'Gen. Patton', type: 'commander', cost: 6, atk: 5, def: 8, rarity: 'limited',
     desc: 'Passive: +2/+2 to adjacent units.',
     history: 'George S. Patton ("Old Blood and Guts") led the US Third Army across France at breakneck speed. Known for his aggressive philosophy: "A good plan violently executed now is better than a perfect plan executed next week."',
     artPrompt: 'ww2 general patton portrait uniform rugged ink watercolor sketch'
   },
   'legend_rommel': {
-    id: 'legend_rommel', name: 'Desert Fox', type: 'commander', cost: 7, atk: 6, def: 7, rarity: 'limited',
+    id: 'legend_rommel', name: 'Desert Fox', type: 'commander', cost: 6, atk: 6, def: 7, rarity: 'limited',
     desc: 'Passive: +2/+2 to adjacent units.',
     history: 'Erwin Rommel earned respect from both sides for his chivalry and tactical brilliance in the North African campaign. He was implicated in the plot against Hitler and forced to commit suicide. "Don\'t fight a battle if you don\'t gain anything by winning."',
     artPrompt: 'erwin rommel german ww2 general desert uniform portrait ink watercolor sketch'
@@ -87,7 +87,7 @@ export const CARD_DATABASE = {
     artPrompt: 'ww2 radar antenna dish radio tower ink watercolor sketch'
   },
   'supp_hq': {
-    id: 'supp_hq', name: 'Forward HQ', type: 'support', cost: 6, atk: 0, def: 10, rarity: 'limited',
+    id: 'supp_hq', name: 'Forward HQ', type: 'support', cost: 5, atk: 0, def: 10, rarity: 'limited',
     desc: 'Passive: All units +1/+1. Invulnerable.', invulnerable: true,
     history: 'Field headquarters coordinated vast movements of troops. Communications were key, often using encrypted Enigma machines or Navajo code talkers. "Amateurs talk strategy. Professionals talk logistics." - Gen. Omar Bradley',
     artPrompt: 'ww2 generals map table command tent strategy ink watercolor sketch'

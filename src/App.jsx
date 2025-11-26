@@ -32,6 +32,7 @@ import {
 import { auth, db, appId } from './firebase';
 import { CARD_DATABASE } from './data/cards';
 import { GameProvider } from './context/GameContext';
+import { getAiMove } from './services/gemini';
 
 // Components
 import Card from './components/Card';
@@ -427,6 +428,54 @@ export default function App() {
     }
   };
 
+  const createAiMatch = async () => {
+    setLoading(true);
+    try {
+      const expireAt = new Date();
+      expireAt.setHours(expireAt.getHours() + 1); // AI matches are short
+
+      // Generate AI Deck/Hand
+      const allCards = Object.keys(CARD_DATABASE);
+      const combatCards = allCards.filter(id => CARD_DATABASE[id].type !== 'support');
+      const supportCards = allCards.filter(id => CARD_DATABASE[id].type === 'support');
+      
+      // Simple random hand generation for AI
+      let aiHand = [];
+      for (let i = 0; i < 2; i++) aiHand.push(supportCards[Math.floor(Math.random() * supportCards.length)]);
+      for (let i = 0; i < 4; i++) aiHand.push(combatCards[Math.floor(Math.random() * combatCards.length)]);
+      // Shuffle
+      aiHand = aiHand.sort(() => 0.5 - Math.random());
+
+      const matchRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'matches'), {
+        hostId: user.uid,
+        hostName: userData.username,
+        guestId: 'AI_COMMANDER',
+        guestName: 'Gemini AI',
+        status: 'active', // Start active immediately
+        turn: 'host',
+        createdAt: serverTimestamp(),
+        lastActive: serverTimestamp(),
+        expireAt: expireAt,
+        hostBoard: [],
+        guestBoard: [],
+        hostHand: [],
+        guestHand: aiHand, // Pre-populated AI Hand
+        hostHP: 20,
+        guestHP: 20,
+        hostMana: 1,
+        guestMana: 1,
+        maxMana: 1,
+        lastEffects: [],
+        lastAction: 'AI Match Started',
+        isAiMatch: true // Flag for AI logic
+      });
+      joinMatch(matchRef.id, true);
+    } catch (e) {
+      console.error(e);
+      showNotif("Failed to start AI match.");
+    }
+  };
+
   const joinMatch = (matchId, isHost = false) => {
     setActiveMatch({ id: matchId, isHost });
     setRewardClaimed(false); 
@@ -705,13 +754,92 @@ export default function App() {
     }
   }, [gameState, activeMatch]);
 
-  const handleEndTurn = async () => {
-    if (isProcessing) return;
+  // --- AI Turn Logic ---
+  useEffect(() => {
+    if (!gameState || !activeMatch || !gameState.isAiMatch) return;
+    
+    // If it's Guest's turn (AI) and I am the Host (Player) handling the AI
+    if (gameState.turn === 'guest' && activeMatch.isHost && !isProcessing) {
+        const runAiTurn = async () => {
+            setIsProcessing(true);
+            
+            // 1. Simulate "Thinking" delay
+            await new Promise(r => setTimeout(r, 1500));
+
+            // 2. Prepare Buffed State for AI
+            const aiBoardBuffed = calculateBuffedBoard(gameState.guestBoard);
+            const playerBoardBuffed = calculateBuffedBoard(gameState.hostBoard);
+
+            // 3. Get AI Move
+            // Note: We pass the buffed boards so AI sees stats correctly
+            const move = await getAiMove(gameState, gameState.guestHand, aiBoardBuffed, playerBoardBuffed);
+            console.log("AI Decided:", move);
+
+            try {
+                // 4. Execute Move using Existing Handlers
+                if (move.action === 'SURRENDER') {
+                    await handleSurrender('guest');
+                }
+                else if (move.action === 'PLAY_CARD' && move.cardId) {
+                    const handIndex = gameState.guestHand.indexOf(move.cardId);
+                    if (handIndex !== -1) {
+                        await handlePlayCard(move.cardId, handIndex, 'guest');
+                    } else {
+                        await handleEndTurn('guest');
+                    }
+                }
+                else if (move.action === 'ATTACK' && typeof move.attackerIndex === 'number') {
+                    const attacker = aiBoardBuffed[move.attackerIndex];
+                    if (attacker) {
+                        // We pass the instanceId so handleAttack finds the exact unit
+                        await handleAttack(move.targetIndex, attacker.instanceId, 'guest');
+                    } else {
+                         // AI tried to attack with missing unit or invalid index
+                        await handleEndTurn('guest');
+                    }
+                }
+                else if (move.action === 'USE_ABILITY' && typeof move.unitIndex === 'number') {
+                    const unit = aiBoardBuffed[move.unitIndex];
+                    if (unit) {
+                        if (typeof move.targetIndex === 'number') {
+                             const target = aiBoardBuffed[move.targetIndex];
+                             if (target) {
+                                 await handleSupportAction(unit, target, move.targetIndex, 'guest');
+                             } else {
+                                await handleEndTurn('guest');
+                             }
+                        } else {
+                             await handleUseAbility(unit, 'guest');
+                        }
+                    } else {
+                         await handleEndTurn('guest');
+                    }
+                }
+                else {
+                    // END_TURN or default
+                    await handleEndTurn('guest');
+                }
+            } catch (e) {
+                console.error("AI execution error", e);
+                // Ensure we don't get stuck
+                await handleEndTurn('guest');
+            }
+
+            setIsProcessing(false);
+        };
+        
+        runAiTurn();
+    }
+  }, [gameState, activeMatch]);
+
+  const handleEndTurn = async (forcedSide = null) => {
+    const actualSide = (typeof forcedSide === 'string') ? forcedSide : null;
+    if (isProcessing && !actualSide) return;
     if (!gameState) return;
-    const isHost = activeMatch.isHost;
+    const isHost = actualSide ? (actualSide === 'host') : activeMatch.isHost;
     if (gameState.turn !== (isHost ? 'host' : 'guest')) return;
 
-    setIsProcessing(true);
+    if (!actualSide) setIsProcessing(true); // UI trigger only
     setSelectedUnitId(null);
     const nextTurn = isHost ? 'guest' : 'host';
     const nextMaxMana = Math.min(gameState.maxMana + (isHost ? 0 : 1), 10);
@@ -746,24 +874,25 @@ export default function App() {
     };
     const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id);
     await updateDoc(matchRef, update);
-    setTimeout(() => setIsProcessing(false), 1000); 
+    setTimeout(() => { if (!actualSide) setIsProcessing(false); }, 1000); 
   };
 
-  const handlePlayCard = async (cardId, index) => {
-    if (isProcessing) return;
-    const isHost = activeMatch.isHost;
+  const handlePlayCard = async (cardId, index, forcedSide = null) => {
+    const actualSide = (typeof forcedSide === 'string') ? forcedSide : null;
+    if (isProcessing && !actualSide) return;
+    const isHost = actualSide ? (actualSide === 'host') : activeMatch.isHost;
     const myTurn = isHost ? 'host' : 'guest';
-    if (gameState.turn !== myTurn) { showNotif("Not your turn!"); return; }
+    if (gameState.turn !== myTurn) { if(!actualSide) showNotif("Not your turn!"); return; }
     
     const manaKey = isHost ? 'hostMana' : 'guestMana';
     const handKey = isHost ? 'hostHand' : 'guestHand';
     const boardKey = isHost ? 'hostBoard' : 'guestBoard';
     
     const cardData = CARD_DATABASE[cardId];
-    if (gameState[manaKey] < cardData.cost) { showNotif("Not enough supplies!"); return; }
+    if (gameState[manaKey] < cardData.cost) { if(!actualSide) showNotif("Not enough supplies!"); return; }
 
-    setIsProcessing(true);
-    const lockTime = cardData.type === 'tactic' ? 6000 : 1200;
+    if (!actualSide) setIsProcessing(true);
+    const lockTime = cardData.type === 'tactic' ? 2000 : 1000;
 
     const newHand = [...gameState[handKey]];
     newHand.splice(index, 1);
@@ -794,7 +923,7 @@ export default function App() {
                lastAction: `${isHost?'Host':'Guest'} Air Strike negated by Radar!`,
                lastEffects: []
              });
-             setTimeout(() => setIsProcessing(false), 1000);
+             setTimeout(() => { if (!actualSide) setIsProcessing(false); }, 1000);
              return;
         }
 
@@ -824,7 +953,7 @@ export default function App() {
              if (finalCleanEnemy.length !== updatedEnemyBoard.length) {
                await updateDoc(matchRef, { [enemyBoardKey]: finalCleanEnemy });
              }
-             setIsProcessing(false);
+             if (!actualSide) setIsProcessing(false);
         }, 2500); // Longer wait for tactics
         return;
       }
@@ -841,23 +970,24 @@ export default function App() {
     };
 
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id), update);
-    setTimeout(() => setIsProcessing(false), lockTime);
+    setTimeout(() => { if (!actualSide) setIsProcessing(false); }, lockTime);
   };
 
-  const handleUseAbility = async (unit) => {
-    if (isProcessing) return;
-    const isHost = activeMatch.isHost;
+  const handleUseAbility = async (unit, forcedSide = null) => {
+    const actualSide = (typeof forcedSide === 'string') ? forcedSide : null;
+    if (isProcessing && !actualSide) return;
+    const isHost = actualSide ? (actualSide === 'host') : activeMatch.isHost;
     if (gameState.turn !== (isHost ? 'host' : 'guest')) {
-        showNotif("Not your turn!");
+        if(!actualSide) showNotif("Not your turn!");
         return;
     }
     if (unit.isAbilityUsed) {
-        showNotif("Ability already used!");
+        if(!actualSide) showNotif("Ability already used!");
         return;
     }
     if (!unit.activeAbility) return;
 
-    setIsProcessing(true);
+    if (!actualSide) setIsProcessing(true);
     const myBoardKey = isHost ? 'hostBoard' : 'guestBoard';
     const myBoard = [...gameState[myBoardKey]];
     const unitIndex = myBoard.findIndex(u => u.instanceId === unit.instanceId);
@@ -887,26 +1017,27 @@ export default function App() {
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id), update);
     
     setSelectedUnitId(null);
-    setTimeout(() => setIsProcessing(false), 1000);
+    setTimeout(() => { if (!actualSide) setIsProcessing(false); }, 1000);
   };
 
-  const handleSupportAction = async (supportUnit, targetUnit, targetIndex) => {
-    if (isProcessing) return;
-    const isHost = activeMatch.isHost;
+  const handleSupportAction = async (supportUnit, targetUnit, targetIndex, forcedSide = null) => {
+    const actualSide = (typeof forcedSide === 'string') ? forcedSide : null;
+    if (isProcessing && !actualSide) return;
+    const isHost = actualSide ? (actualSide === 'host') : activeMatch.isHost;
     if (gameState.turn !== (isHost ? 'host' : 'guest')) {
-        showNotif("Not your turn!");
+        if(!actualSide) showNotif("Not your turn!");
         return;
     }
     if (supportUnit.isAbilityUsed) {
-      showNotif("Support ability already used!");
+      if(!actualSide) showNotif("Support ability already used!");
       return;
     }
     if (supportUnit.canAttack === false) {
-      showNotif("Support unit is busy!");
+      if(!actualSide) showNotif("Support unit is busy!");
       return;
     }
     if (targetUnit.type === 'support') {
-      showNotif("Cannot support another Support unit!");
+      if(!actualSide) showNotif("Cannot support another Support unit!");
       return;
     }
     
@@ -917,7 +1048,7 @@ export default function App() {
        return;
     }
 
-    setIsProcessing(true);
+    if (!actualSide) setIsProcessing(true);
 
     const myBoardKey = isHost ? 'hostBoard' : 'guestBoard';
     const myBoard = [...gameState[myBoardKey]];
@@ -967,12 +1098,13 @@ export default function App() {
     });
     
     setSelectedUnitId(null); 
-    setTimeout(() => setIsProcessing(false), 1200); 
+    setTimeout(() => { if (!actualSide) setIsProcessing(false); }, 1200); 
   };
 
-  const handleAttack = async (targetIndex = -1) => {
-    if (isProcessing) return;
-    const isHost = activeMatch.isHost;
+  const handleAttack = async (targetIndex = -1, explicitAttackerId = null, forcedSide = null) => {
+    const actualSide = (typeof forcedSide === 'string') ? forcedSide : null;
+    if (isProcessing && !actualSide) return;
+    const isHost = actualSide ? (actualSide === 'host') : activeMatch.isHost;
     if (gameState.turn !== (isHost ? 'host' : 'guest')) return;
     
     const myBoardKey = isHost ? 'hostBoard' : 'guestBoard';
@@ -988,7 +1120,10 @@ export default function App() {
     let attacker;
     let attackerIndex = -1;
 
-    if (selectedUnitId) {
+    if (explicitAttackerId) {
+        attacker = myBoardBuffed.find(u => u.instanceId === explicitAttackerId);
+        attackerIndex = myBoardRaw.findIndex(u => u.instanceId === explicitAttackerId);
+    } else if (selectedUnitId) {
       attacker = myBoardBuffed.find(u => u.instanceId === selectedUnitId);
       attackerIndex = myBoardRaw.findIndex(u => u.instanceId === selectedUnitId);
     } else {
@@ -997,19 +1132,19 @@ export default function App() {
     }
 
     if (!attacker) {
-      showNotif("No ready combat units available!");
+      if(!actualSide) showNotif("No ready combat units available!");
       return;
     }
     if (attacker.type === 'support') {
-      showNotif("Support units cannot attack!");
+      if(!actualSide) showNotif("Support units cannot attack!");
       return;
     }
     if (attacker.canAttack === false) {
-      showNotif("Unit is recovering (Zzz)!");
+      if(!actualSide) showNotif("Unit is recovering (Zzz)!");
       return;
     }
 
-    setIsProcessing(true);
+    if (!actualSide) setIsProcessing(true);
 
     if (attackerIndex !== -1) {
       myBoardRaw[attackerIndex].canAttack = false;
@@ -1104,7 +1239,7 @@ export default function App() {
         }
     }, 1000);
     
-    setTimeout(() => setIsProcessing(false), 1200); 
+    setTimeout(() => { if (!actualSide) setIsProcessing(false); }, 1200); 
   };
 
   const handleBoardClick = (unit, index, isEnemy) => {
@@ -1142,9 +1277,10 @@ export default function App() {
     }
   };
 
-  const handleSurrender = async () => {
+  const handleSurrender = async (forcedSide = null) => {
     if (!activeMatch || !gameState) return;
-    const isHost = activeMatch.isHost;
+    const actualSide = (typeof forcedSide === 'string') ? forcedSide : null;
+    const isHost = actualSide ? (actualSide === 'host') : activeMatch.isHost;
     
     const update = {
       status: 'finished',
@@ -1303,7 +1439,7 @@ export default function App() {
         )}
 
                 {view === 'home' && <RenderHome setView={setView} setShowTutorial={setShowTutorial} showTutorial={showTutorial} activateTestMode={activateTestMode} />}
-                {view === 'lobby' && <RenderLobby setView={setView} matchesList={matchesList} createMatch={createMatch} joinMatch={joinMatch} user={user} />}
+                {view === 'lobby' && <RenderLobby setView={setView} matchesList={matchesList} createMatch={createMatch} joinMatch={joinMatch} user={user} createAiMatch={createAiMatch} />}
                 {view === 'game' &&            <GameView 
              gameState={gameState}
              user={user}
