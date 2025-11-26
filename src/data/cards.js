@@ -105,5 +105,5 @@ export const getCardImageUrl = (cardId, artPrompt, type, customSeed = null) => {
   const prompt = artPrompt || `ww2 ${type} combat unit ink watercolor sketch`;
   const encodedPrompt = encodeURIComponent(prompt + " white background");
   const seed = customSeed || cardId;
-  return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=400&height=600&nologo=true&seed=${seed}&model=turbo`;
+  return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=400&height=600&nologo=true&seed=${seed}&model=flux`;
 };

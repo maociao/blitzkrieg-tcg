@@ -76,7 +76,7 @@ const Card = ({ cardId, onClick, disabled, size = 'normal', price = null, showSt
             
             {size === 'large' ? (
               <div className="w-full flex-1 rounded-md overflow-hidden relative mb-1 bg-gray-700 min-h-0">
-                  {(isLoading || (artSeed ? true : false)) && !hasError && (
+                  {isLoading && !hasError && (
                     <div className="absolute inset-0 flex items-center justify-center bg-gray-800 z-10">
                        <div className="w-full h-full absolute inset-0 bg-gradient-to-b from-transparent via-green-500/20 to-transparent animate-scan"></div>
                        <Loader2 className="animate-spin text-green-500" size={32} />
