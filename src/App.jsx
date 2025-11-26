@@ -474,6 +474,8 @@ export default function App() {
             } catch (e) {
               console.error("Join error:", e);
               joiningRef.current = false; // Reset on error
+              showNotif("Join failed. Connection error?");
+              handleLeaveClean();
             }
          } else if (data.guestId && data.guestId !== user.uid) {
             showNotif("Match is full!");
@@ -482,6 +484,10 @@ export default function App() {
       } else {
         setGameState(data);
       }
+    }, (error) => {
+        console.error("Match sync error:", error);
+        showNotif("Connection Lost. Returning to base.");
+        handleLeaveClean();
     });
     return () => unsub();
   }, [view, activeMatch]);

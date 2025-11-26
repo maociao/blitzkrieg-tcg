@@ -10,7 +10,19 @@ const GameView = ({
   isProcessing 
 }) => {
   
-  if (!gameState) return <div className="flex items-center justify-center h-full text-2xl font-mono animate-pulse">Establishing Comms...</div>;
+  if (!gameState) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full space-y-4 animate-pulse">
+         <div className="text-2xl font-mono">Establishing Comms...</div>
+         <button 
+            onClick={handleLeaveClean} 
+            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm rounded border border-gray-600 transition-colors"
+         >
+            Cancel
+         </button>
+      </div>
+    );
+  }
 
   if (gameState.status === 'waiting') {
     return (
