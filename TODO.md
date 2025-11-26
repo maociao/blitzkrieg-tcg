@@ -1,18 +1,23 @@
 # TODO
 
 ## UI Tweaks
-- [ ] Fix Air Strike notification
+- [x] Fix Air Strike notification
     - If attack is successful do not show the notification to player playing the card
     - If attack fails due to opponent having a Radar Tower then show the card to both players with a big X and notification.
     - Reduce the duration of the notification from 6 seconds to 1.2
     - Fix notification z to appear with card instead of behind blur overlay 
+- [x] Before showing Victory and Defeat screens give pause to allow the killing blow to play out.
 
 ## Refactor
 - [ ] Reduce size of App.jsx
 
 ## New functionality
 - [ ] Add AI opponent for solo play.
-- [ ] Cleanup zombie matches & prevent joining own matches.
+
+## Bugs
+- [ ] Cleanup zombie matches
+- [X] prevent joining own matches.
+- [ ] Prevent guest from joining abandoned/zombie matches
 
 ## New game mechanics:
 - [ ] Reinforcements: When a player's hand runs out of cards, replenish their hand from barracks; each card can only be played once from barracks, including starting hand, until all cards have been played.
@@ -22,6 +27,8 @@
 - [x] Reduce Radar Station cost to 3
 - [x] Reduce Bunker cost to 2
 - [x] Reduce Field Hospital cost to 1
+- [ ] Reduce cost of Sherman and Panzer tanks to 3
+- [ ] Reduce cost of Tiger tanks to 4
 
 ### New Passive cards
 - [x] While a Concrete Bunker is deployed it takes damage instead of the HQ when the HQ is targeted

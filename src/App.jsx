@@ -25,7 +25,8 @@ import {
   User,
   RefreshCw,
   Check,
-  X
+  X,
+  Flag
 } from 'lucide-react';
 
 import { auth, db, appId } from './firebase';
@@ -121,6 +122,7 @@ export default function App() {
   const [inspectCard, setInspectCard] = useState(null);
   const [artSeed, setArtSeed] = useState(null);
   const [artOverrides, setArtOverrides] = useState({});
+  const [surrenderEffect, setSurrenderEffect] = useState(null); // Stores text or null
   
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -613,18 +615,40 @@ export default function App() {
   useEffect(() => {
     if (gameState && gameState.lastAction) {
       if (prevLastAction.current !== gameState.lastAction) {
+        const lastAction = gameState.lastAction;
+        const isMyAction = lastAction.startsWith(activeMatch.isHost ? 'Host' : 'Guest');
+        
         // Find if action mentions a tactic card
         const tactic = Object.values(CARD_DATABASE).find(c => 
-          c.type === 'tactic' && gameState.lastAction.includes(c.name)
+          c.type === 'tactic' && lastAction.includes(c.name)
         );
+
         if (tactic) {
-          setSplashCard(tactic);
-          setTimeout(() => setSplashCard(null), 6000);
+           const isIntercepted = lastAction.includes("intercepted by Radar") || lastAction.includes("negated by Radar");
+           
+           // Show if:
+           // 1. I am the victim (Opponent played it)
+           // 2. OR it was intercepted (Show to both for clarity)
+           if (!isMyAction || isIntercepted) {
+              setSplashCard({ ...tactic, intercepted: isIntercepted });
+              setTimeout(() => setSplashCard(null), 2000);
+           }
+        } else if (lastAction.includes("surrendered")) {
+            // Determine if I surrendered
+            const isHost = activeMatch.isHost;
+            const surrenderingRole = lastAction.split(' ')[0]; // 'Host' or 'Guest'
+            const isMe = (surrenderingRole === 'Host' && isHost) || (surrenderingRole === 'Guest' && !isHost);
+            
+            const text = isMe ? "YOU SURRENDERED" : "OPPONENT SURRENDERED";
+            
+            // showNotif removed - using overlay text only
+            setSurrenderEffect(text);
+            setTimeout(() => setSurrenderEffect(null), 2000);
         }
-        prevLastAction.current = gameState.lastAction;
+        prevLastAction.current = lastAction;
       }
     }
-  }, [gameState]);
+  }, [gameState, activeMatch]);
 
   const handleEndTurn = async () => {
     if (isProcessing) return;
@@ -1135,7 +1159,7 @@ export default function App() {
       <main className="flex-1 overflow-hidden relative">
         {/* Notification Wrapper for centering */}
         {notification && (
-          <div className="absolute top-4 w-full flex justify-center z-50 pointer-events-none">
+          <div className="absolute top-4 w-full flex justify-center z-[300] pointer-events-none">
             <div className="bg-yellow-600 text-black px-6 py-2 rounded-full font-bold shadow-lg animate-bounce border border-yellow-500 pointer-events-auto">
               {notification}
             </div>
@@ -1151,12 +1175,31 @@ export default function App() {
            </div>
         )}
 
+        {/* SURRENDER OVERLAY - Global */}
+        {surrenderEffect && (
+           <div className="absolute inset-0 z-[150] flex items-center justify-center pointer-events-none animate-in fade-in zoom-in duration-500">
+                <div className="flex flex-col items-center">
+                    <Flag size={128} className="text-white drop-shadow-[0_0_10px_rgba(0,0,0,0.8)]" />
+                    <div className="text-4xl font-black text-white mt-4 uppercase tracking-widest drop-shadow-[0_0_10px_rgba(0,0,0,0.8)]">{surrenderEffect}</div>
+                </div>
+           </div>
+        )}
+
         {/* CARD SPLASH OVERLAY - Global */}
         {splashCard && (
           <div className="absolute inset-0 z-[200] flex items-center justify-center pointer-events-none bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
-             <div className="flex flex-col items-center animate-in zoom-in duration-500">
-                <div className="text-4xl font-black text-yellow-500 mb-4 drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)] uppercase tracking-widest">OPPONENT PLAYED</div>
-                <Card cardId={splashCard.id} size="large" disabled className="shadow-2xl" />
+             <div className="flex flex-col items-center animate-in zoom-in duration-500 relative">
+                <div className={`text-4xl font-black mb-4 drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)] uppercase tracking-widest ${splashCard.intercepted ? 'text-red-600' : 'text-yellow-500'}`}>
+                    {splashCard.intercepted ? 'INTERCEPTED' : 'OPPONENT PLAYED'}
+                </div>
+                <div className="relative">
+                    <Card cardId={splashCard.id} size="large" disabled className="shadow-2xl" />
+                    {splashCard.intercepted && (
+                        <div className="absolute inset-0 flex items-center justify-center z-50">
+                            <X size={128} className="text-red-600 drop-shadow-[0_0_10px_rgba(0,0,0,1)] animate-pulse" strokeWidth={3} />
+                        </div>
+                    )}
+                </div>
              </div>
           </div>
         )}

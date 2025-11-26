@@ -9,6 +9,16 @@ const GameView = ({
   handlePlayCard, handleEndTurn, handleUseAbility, CARD_DATABASE, 
   isProcessing 
 }) => {
+  const [showResults, setShowResults] = React.useState(false);
+
+  React.useEffect(() => {
+    if (gameState && gameState.status === 'finished') {
+        const timer = setTimeout(() => setShowResults(true), 2500); // 2.5s delay for kill animation
+        return () => clearTimeout(timer);
+    } else {
+        setShowResults(false);
+    }
+  }, [gameState?.status]);
   
   if (!gameState) {
     return (
@@ -43,9 +53,9 @@ const GameView = ({
 
   const selectedUnit = selectedUnitId ? myBoard.find(u => u.instanceId === selectedUnitId) : null;
 
-  if (gameState.status === 'finished') {
+  if (gameState.status === 'finished' && showResults) {
     return (
-      <div className="flex flex-col items-center justify-center h-full space-y-4">
+      <div className="flex flex-col items-center justify-center h-full space-y-4 animate-in fade-in zoom-in duration-500">
         <div className="text-6xl font-black uppercase">{gameState.winner === user.uid ? <span className="text-yellow-400">Victory</span> : <span className="text-red-600">Defeat</span>}</div>
         <button onClick={handleLeaveClean} className="px-8 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">Return to Base</button>
       </div>
