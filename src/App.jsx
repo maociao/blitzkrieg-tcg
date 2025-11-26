@@ -451,6 +451,23 @@ export default function App() {
       const data = snap.data();
       
       if (!activeMatch.isHost && data.status === 'waiting') {
+         // CRITICAL FIX: Prevent Host from joining as Guest (Self-Play Exploit)
+         if (data.hostId === user.uid) {
+             // If we reached here, the UI likely sent them as guest, or they manipulated state.
+             // We can either switch them to host or kick them. 
+             // For safety against the exploit, we stop the "Guest Join" db write.
+             if (joiningRef.current) return; // Already joining?
+             
+             // If they are the host, they shouldn't be here as guest. 
+             // But if we want to support "Resume", the UI should have passed isHost=true.
+             // If we are here, isHost is false. So this is an error/exploit case.
+             console.warn("Prevented self-join.");
+             // showNotif("Reconnecting as Host..."); 
+             // optional: setActiveMatch({ ...activeMatch, isHost: true }); 
+             // For now, just return to avoid the DB write that causes the bug.
+             return;
+         }
+
          if (!data.guestId && !joiningRef.current) {
             joiningRef.current = true; // Prevent loop
             try {
@@ -1187,10 +1204,9 @@ export default function App() {
           </Modal>
         )}
 
-        {view === 'home' && <RenderHome setView={setView} setShowTutorial={setShowTutorial} showTutorial={showTutorial} activateTestMode={activateTestMode} />}
-        {view === 'lobby' && <RenderLobby setView={setView} matchesList={matchesList} createMatch={createMatch} joinMatch={joinMatch} />}
-        {view === 'game' && 
-          <GameView 
+                {view === 'home' && <RenderHome setView={setView} setShowTutorial={setShowTutorial} showTutorial={showTutorial} activateTestMode={activateTestMode} />}
+                {view === 'lobby' && <RenderLobby setView={setView} matchesList={matchesList} createMatch={createMatch} joinMatch={joinMatch} user={user} />}
+                {view === 'game' &&            <GameView 
              gameState={gameState}
              user={user}
              activeMatch={activeMatch}
