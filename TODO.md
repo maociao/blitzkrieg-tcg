@@ -15,7 +15,7 @@
 - [ ] Add AI opponent for solo play.
 
 ## Bugs
-- [X] Cleanup zombie matches
+- [X] Cleanup zombie matches & Implement TTL logic
 - [X] prevent joining own matches.
 - [X] Prevent guest from joining abandoned/zombie matches
 - [ ] Handle when a player abandons in the middle of a match

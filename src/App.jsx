@@ -405,12 +405,16 @@ export default function App() {
   const createMatch = async () => {
     setLoading(true);
     try {
+      const expireAt = new Date();
+      expireAt.setHours(expireAt.getHours() + 24); // TTL: 24 hours from now
+
       const matchRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'matches'), {
         hostId: user.uid,
         hostName: userData.username,
         status: 'waiting',
         createdAt: serverTimestamp(),
-        lastActive: serverTimestamp(), // Initial heartbeat
+        lastActive: serverTimestamp(), // For lobby "online" check
+        expireAt: expireAt,            // For Firestore TTL auto-deletion
         hostBoard: [],
         guestBoard: [],
         hostHand: [],
@@ -437,15 +441,14 @@ export default function App() {
     
     // Pulse every 10s
     const interval = setInterval(() => {
-        // Only update if we are still in waiting state or active? 
-        // Actually, we should keep pulsing while in game too? 
-        // The issue is "Abandoned Matches" in the lobby. 
-        // Once the game starts (status != waiting), the lobby filter ignores it anyway.
-        // But let's keep updating it just in case we want to detect disconnected opponents later.
-        // For now, strictly for the lobby bug, updating while 'waiting' is critical.
-        // But we don't have 'gameState' in this effect closure easily without re-triggering.
-        // We can just blindly update lastActive.
-        updateDoc(matchRef, { lastActive: serverTimestamp() }).catch(e => console.warn("Heartbeat fail", e));
+        // Keep match alive in Lobby (lastActive) AND postpone TTL deletion (expireAt)
+        const expireAt = new Date();
+        expireAt.setHours(expireAt.getHours() + 24);
+
+        updateDoc(matchRef, { 
+            lastActive: serverTimestamp(),
+            expireAt: expireAt 
+        }).catch(e => console.warn("Heartbeat fail", e));
     }, 10000);
 
     return () => clearInterval(interval);
