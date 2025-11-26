@@ -383,9 +383,19 @@ export default function App() {
     const q = collection(db, 'artifacts', appId, 'public', 'data', 'matches');
     const unsub = onSnapshot(q, (snapshot) => {
       const m = [];
+      const now = Date.now();
       snapshot.forEach(doc => {
         const d = doc.data();
-        if (d.status === 'waiting') m.push({ id: doc.id, ...d });
+        if (d.status === 'waiting') {
+            // Heartbeat Check (30s timeout)
+            let isLive = true;
+            if (d.lastActive) {
+                // Handle Firestore Timestamp or potential null pending write
+                const millis = d.lastActive.toMillis ? d.lastActive.toMillis() : now; 
+                if (now - millis > 30000) isLive = false;
+            }
+            if (isLive) m.push({ id: doc.id, ...d });
+        }
       });
       setMatchesList(m);
     });
@@ -400,6 +410,7 @@ export default function App() {
         hostName: userData.username,
         status: 'waiting',
         createdAt: serverTimestamp(),
+        lastActive: serverTimestamp(), // Initial heartbeat
         hostBoard: [],
         guestBoard: [],
         hostHand: [],
@@ -417,6 +428,28 @@ export default function App() {
     setRewardClaimed(false); 
     setView('game');
   };
+
+  // --- Host Heartbeat ---
+  useEffect(() => {
+    if (!activeMatch || !activeMatch.isHost || !user) return;
+    
+    const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id);
+    
+    // Pulse every 10s
+    const interval = setInterval(() => {
+        // Only update if we are still in waiting state or active? 
+        // Actually, we should keep pulsing while in game too? 
+        // The issue is "Abandoned Matches" in the lobby. 
+        // Once the game starts (status != waiting), the lobby filter ignores it anyway.
+        // But let's keep updating it just in case we want to detect disconnected opponents later.
+        // For now, strictly for the lobby bug, updating while 'waiting' is critical.
+        // But we don't have 'gameState' in this effect closure easily without re-triggering.
+        // We can just blindly update lastActive.
+        updateDoc(matchRef, { lastActive: serverTimestamp() }).catch(e => console.warn("Heartbeat fail", e));
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [activeMatch, user]);
 
   const grantWinReward = async () => {
     if (!userData || !user) return;
@@ -557,21 +590,40 @@ export default function App() {
   useEffect(() => {
     if (gameState && gameState.lastEffects) {
       const effectsStr = JSON.stringify(gameState.lastEffects);
-      if (effectsStr !== prevEffectsRef.current) {
-        // New effects detected!
+      
+      // Only process if the raw data changed OR if we need to check for staleness
+      // But actually, we just want to filter stale ones.
+      // If we filter stale ones, and the result is empty, we set empty.
+      
+      const now = Date.now();
+      const recentEffects = gameState.lastEffects.filter(fx => {
+          // Check if effect is recent (within 2 seconds)
+          // fx.id is the timestamp
+          return (now - fx.id) < 2000;
+      });
+
+      const recentEffectsStr = JSON.stringify(recentEffects);
+
+      if (recentEffectsStr !== prevEffectsRef.current) {
+        // New valid effects detected!
         const newEffects = {};
-        gameState.lastEffects.forEach(fx => {
-          newEffects[fx.unitId] = { type: fx.type, id: fx.id || Date.now() }; // Add random ID for re-render
+        recentEffects.forEach(fx => {
+          newEffects[fx.unitId] = { type: fx.type, id: fx.id }; 
         });
         
-        setVisualEffects(newEffects);
-        
-        // Clear effects after 1.5s
-        setTimeout(() => {
-          setVisualEffects({});
-        }, 1500);
+        // Only update state if we have something, or if we need to clear
+        if (Object.keys(newEffects).length > 0 || prevEffectsRef.current !== "[]") {
+            setVisualEffects(newEffects);
+            
+            // Clear effects after 1.5s (local cleanup)
+            if (Object.keys(newEffects).length > 0) {
+                setTimeout(() => {
+                    setVisualEffects({});
+                }, 1500);
+            }
+        }
 
-        prevEffectsRef.current = effectsStr;
+        prevEffectsRef.current = recentEffectsStr;
       }
     }
   }, [gameState]);

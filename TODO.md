@@ -15,13 +15,15 @@
 - [ ] Add AI opponent for solo play.
 
 ## Bugs
-- [ ] Cleanup zombie matches
+- [X] Cleanup zombie matches
 - [X] prevent joining own matches.
-- [ ] Prevent guest from joining abandoned/zombie matches
+- [X] Prevent guest from joining abandoned/zombie matches
+- [ ] Handle when a player abandons in the middle of a match
 
 ## New game mechanics:
 - [ ] Reinforcements: When a player's hand runs out of cards, replenish their hand from barracks; each card can only be played once from barracks, including starting hand, until all cards have been played.
 - [ ] Reinforcements: When all cards have been played from hand and barracks. replenish barracks with all non-deployed cards, and then refresh player's hand from barracks.
+- [ ] Attacking card must have attack HIGHER than the defending card's Defense to avoid a counter attack; if attack = defense, a counter attack occurs.
 
 ### Card effect adjustments
 - [x] Reduce Radar Station cost to 3
