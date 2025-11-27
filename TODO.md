@@ -28,7 +28,7 @@
 - [ ] Reinforcements: When a player's hand runs out of cards, replenish their hand from barracks; each card can only be played once from barracks, including starting hand, until all cards have been played.
 - [ ] Reinforcements: When all cards have been played from hand and barracks. replenish barracks with all non-deployed cards, and then refresh player's hand from barracks.
 - [ ] Attacking card must have attack HIGHER than the defending card's Defense to avoid a counter attack; if attack = defense, a counter attack occurs.
-- [ ] Contrete bunker and Field Hospital buffs only apply to infantry units
+- [ ] Concrete bunker and Field Hospital buffs only apply to infantry units
 - [ ] New engineer support unit heals tanks and air units
 
 ### Card effect adjustments

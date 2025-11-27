@@ -44,7 +44,7 @@ export const getAiMove = async (gameState, aiHand, aiBoard, playerBoard) => {
           maxHp: u.def,
           desc: c.desc, 
           canAttack: isSupport ? false : u.canAttack,
-          isDepleted: isSupport ? !u.canAttack : undefined, 
+          isDepleted: isSupport ? (u.isAbilityUsed || !u.canAttack) : undefined, 
           activeAbility: c.activeAbility, 
           supportEffect: c.supportEffect,  
           isTaunt: u.id === 'supp_bunker'
@@ -69,7 +69,7 @@ export const getAiMove = async (gameState, aiHand, aiBoard, playerBoard) => {
     
     **Rules:**
     - Mana: Costs are fixed. You have ${stateSummary.aiMana} mana. You must have enough "aiMana" to cover the "cost" of playing a card.
-    - Attack: Units can attack enemy units or the HQ (face) if no Taunt units (Bunkers) are present.
+    - Attack: Units can attack enemy units or the HQ (face) if no Taunt units (Bunkers) are present. Only units with canAttack=true are able to ATTACK.
     - Counter Attack: Attacking units suffer counter attack damage equal to the defending unit's attack if the defending unit is not destroyed in the attack.
     - Passive Support: Some units have passive abilities that provide some benefit to the player. These benefits apply for as long as the unit is deployed.
     - Active Support: Support units can USE_ABILITY to boost other units or provide some other benefit to the player. Support units marked isDepleted=true are not available for USE_ABILITY. Support units cannot target themselves or other support units.
