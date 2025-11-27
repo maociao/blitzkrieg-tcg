@@ -20,6 +20,9 @@ Everything from the card art to the battlefield effects is rendered dynamically 
 ### ⚔️ Real-Time Multiplayer Combat
 Engage in 1v1 battles with live opponents. The game engine handles turn states, mana (supply) progression, and combat resolution instantly via Firestore real-time listeners.
 
+### 🤖 AI Commander (Solo Play)
+Test your strategies against a **Generative AI Opponent** (powered by Google Gemini). The AI analyzes the board state, understands unit abilities (including buffs), and makes strategic decisions to challenge your command.
+
 ### 📦 Player-Driven Economy
 A fully functional **Global Marketplace** allows commanders to:
 *   **Sell** unwanted units from their barracks for credits.

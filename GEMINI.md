@@ -19,12 +19,15 @@ The project has been successfully refactored from a single-file prototype (`blit
 
 ### Key Features Implemented
 - **Multiplayer Logic:** Robust matchmaking with atomic join operations and lazy hand generation.
+- **AI Opponent:** Integrated Gemini AI for solo play, featuring context-aware decision making (buffs, hand count, unit descriptions).
+- **Refactored Core Logic:** Unified game logic handlers (`handleAttack`, `handlePlayCard`, etc.) used by both Human and AI players to ensure consistent rule enforcement.
 - **Economy:** Fully functional Marketplace allowing users to list and buy cards with secure transactions.
 - **Visuals:** Dynamic visual effects engine for attacks, buffs, and card splashes.
 - **Security:** Comprehensive `firestore.rules` preventing unauthorized data access and logic exploitation.
 
 ## Core Features
 - **Multiplayer Combat:** Real-time matches with turn-based mechanics (Deployment, Combat, Support).
+- **Solo vs AI:** Challenge a generative AI opponent that adapts to the board state.
 - **Card System:** Diverse units including Infantry, Tanks, Air support, Commanders, and Tactics.
 - **Economy:** Marketplace for buying and selling cards using in-game credits.
 - **Progression:** User profiles, win/loss tracking, and collection management.
