@@ -75,8 +75,8 @@ const Card = ({ cardId, onClick, disabled, size = 'normal', price = null, showSt
             </div>
             
             {size === 'large' ? (
-              <div className="w-full h-64 rounded-md overflow-hidden relative mb-4 bg-gray-700 shrink-0">
-                  {(isLoading || (artSeed ? true : false)) && !hasError && (
+              <div className="w-full flex-1 rounded-md overflow-hidden relative mb-1 bg-gray-700 min-h-0">
+                  {isLoading && !hasError && (
                     <div className="absolute inset-0 flex items-center justify-center bg-gray-800 z-10">
                        <div className="w-full h-full absolute inset-0 bg-gradient-to-b from-transparent via-green-500/20 to-transparent animate-scan"></div>
                        <Loader2 className="animate-spin text-green-500" size={32} />
@@ -100,12 +100,8 @@ const Card = ({ cardId, onClick, disabled, size = 'normal', price = null, showSt
                   />
               </div>
             ) : (
-              <CardArt type={data.type} id={cardId} artPrompt={data.artPrompt} customSeed={customSeed || (artOverrides ? artOverrides[cardId] : null)} />
+              <CardArt type={data.type} id={cardId} artPrompt={data.artPrompt} customSeed={customSeed || (artOverrides ? artOverrides[cardId] : null)} className="flex-1 mb-1 min-h-0" />
             )}
-
-            <div className={`${size === 'large' ? 'text-sm' : 'text-[10px]'} text-gray-300 leading-tight overflow-hidden mb-1 px-1 z-10 flex-1`}>
-              {data.desc}
-            </div>
 
             {showStats && data.type !== 'tactic' && (
               <div className="flex justify-between mt-auto border-t border-white/10 pt-1 px-1 z-10">
@@ -143,6 +139,10 @@ const Card = ({ cardId, onClick, disabled, size = 'normal', price = null, showSt
              
              <div className="text-black font-mono text-sm border-b-2 border-black pb-1 mb-2 font-bold uppercase tracking-widest flex items-center">
                 <ZoomIn size={14} className="mr-2"/> Intel Report
+             </div>
+
+             <div className="text-xs font-bold text-gray-800 mb-2 border-b border-gray-400 pb-1 italic">
+               "{data.desc}"
              </div>
              
              <div className="flex-1 font-serif text-gray-900 text-sm leading-normal overflow-y-auto pr-1 font-medium">

@@ -1,0 +1,50 @@
+# TODO
+
+## UI Tweaks
+- [x] Fix Air Strike notification
+    - If attack is successful do not show the notification to player playing the card
+    - If attack fails due to opponent having a Radar Tower then show the card to both players with a big X and notification.
+    - Reduce the duration of the notification from 6 seconds to 1.2
+    - Fix notification z to appear with card instead of behind blur overlay 
+- [x] Before showing Victory and Defeat screens give pause to allow the killing blow to play out.
+
+## Refactor
+- [ ] Reduce size of App.jsx
+- [x] AI should use existing handlers (handleEndTurn, handlePlayCard, handleUseAbility, handleSupportAction, handleAttack, etc.)
+- [x] Add player hand count to AI prompt.
+- [x] Add card description to cards on board for AI prompt.
+- [x] Add last action to AI prompt
+
+## New functionality
+- [x] Add AI opponent for solo play.
+
+## Bugs
+- [X] Cleanup zombie matches & Implement TTL logic
+- [X] prevent joining own matches.
+- [X] Prevent guest from joining abandoned/zombie matches
+- [ ] Handle when a player abandons in the middle of a match
+
+## New game mechanics:
+- [ ] Reinforcements: When a player's hand runs out of cards, replenish their hand from barracks; each card can only be played once from barracks, including starting hand, until all cards have been played.
+- [ ] Reinforcements: When all cards have been played from hand and barracks. replenish barracks with all non-deployed cards, and then refresh player's hand from barracks.
+- [ ] Attacking card must have attack HIGHER than the defending card's Defense to avoid a counter attack; if attack = defense, a counter attack occurs.
+- [ ] Contrete bunker and Field Hospital buffs only apply to infantry units
+- [ ] New engineer support unit heals tanks and air units
+
+### Card effect adjustments
+- [x] Reduce Radar Station cost to 3
+- [x] Reduce Bunker cost to 2
+- [x] Reduce Field Hospital cost to 1
+- [x] Reduce cost of Sherman and Panzer tanks to 3
+- [X] Reduce cost of Tiger tanks to 4
+- [X] Increase P-51 Mustang HP to 4
+- [X] Reduce cost of Commanders to 6
+- [X] Reduce cost of Forward HQ to 5
+
+### New Passive cards
+- [x] While a Concrete Bunker is deployed it takes damage instead of the HQ when the HQ is targeted
+- [x] Radars negate Air Raid effect
+- [x] Field Hospital heals HQ +1 up to max HP each round it is deployed on the field
+- [x] Commander cards give +2/+2 to adjacent units
+- [x] Supply Truck one time active effect restores up to 4 supplies (click on card to reveal "use" button). passive gives all units +1 attack.
+- [x] Forward HQ passive gives all units +1/+1; No active effect; Invlunerable - HP is infinite

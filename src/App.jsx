@@ -25,12 +25,14 @@ import {
   User,
   RefreshCw,
   Check,
-  X
+  X,
+  Flag
 } from 'lucide-react';
 
 import { auth, db, appId } from './firebase';
 import { CARD_DATABASE } from './data/cards';
 import { GameProvider } from './context/GameContext';
+import { getAiMove } from './services/gemini';
 
 // Components
 import Card from './components/Card';
@@ -42,6 +44,57 @@ import RenderCollection from './views/RenderCollection';
 import RenderMarket from './views/RenderMarket';
 import RenderLobby from './views/RenderLobby';
 import GameView from './views/GameView';
+
+// Helper for Passive Effects
+const calculateBuffedBoard = (board) => {
+  if (!board) return [];
+  
+  // 1. Calculate Global Buffs first
+  let globalAtk = 0;
+  let globalDef = 0;
+  
+  board.forEach(u => {
+    if (u.id === 'supp_supply') {
+        globalAtk += 1;
+    }
+    if (u.id === 'supp_hq') {
+        globalAtk += 1;
+        globalDef += 1;
+    }
+  });
+
+  return board.map((unit, index) => {
+    let buffAtk = globalAtk;
+    let buffDef = globalDef;
+    
+    // Check adjacent for Commanders (Patton/Rommel)
+    if (index > 0) {
+      const left = board[index - 1];
+      if (left.id === 'legend_patton' || left.id === 'legend_rommel') {
+         buffAtk += 2;
+         buffDef += 2;
+      }
+    }
+    if (index < board.length - 1) {
+      const right = board[index + 1];
+      if (right.id === 'legend_patton' || right.id === 'legend_rommel') {
+         buffAtk += 2;
+         buffDef += 2;
+      }
+    }
+
+    if (buffAtk === 0 && buffDef === 0) return unit;
+
+    return {
+      ...unit,
+      atk: unit.atk + buffAtk,
+      def: unit.def + buffDef,
+      // Visual only: Boost currentHp to match the def boost so they don't look damaged
+      // Real HP logic handles damage separately.
+      currentHp: unit.currentHp + buffDef 
+    };
+  });
+};
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -70,6 +123,7 @@ export default function App() {
   const [inspectCard, setInspectCard] = useState(null);
   const [artSeed, setArtSeed] = useState(null);
   const [artOverrides, setArtOverrides] = useState({});
+  const [surrenderEffect, setSurrenderEffect] = useState(null); // Stores text or null
   
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -330,9 +384,19 @@ export default function App() {
     const q = collection(db, 'artifacts', appId, 'public', 'data', 'matches');
     const unsub = onSnapshot(q, (snapshot) => {
       const m = [];
+      const now = Date.now();
       snapshot.forEach(doc => {
         const d = doc.data();
-        if (d.status === 'waiting') m.push({ id: doc.id, ...d });
+        if (d.status === 'waiting') {
+            // Heartbeat Check (30s timeout)
+            let isLive = true;
+            if (d.lastActive) {
+                // Handle Firestore Timestamp or potential null pending write
+                const millis = d.lastActive.toMillis ? d.lastActive.toMillis() : now; 
+                if (now - millis > 30000) isLive = false;
+            }
+            if (isLive) m.push({ id: doc.id, ...d });
+        }
       });
       setMatchesList(m);
     });
@@ -342,11 +406,16 @@ export default function App() {
   const createMatch = async () => {
     setLoading(true);
     try {
+      const expireAt = new Date();
+      expireAt.setHours(expireAt.getHours() + 24); // TTL: 24 hours from now
+
       const matchRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'matches'), {
         hostId: user.uid,
         hostName: userData.username,
         status: 'waiting',
         createdAt: serverTimestamp(),
+        lastActive: serverTimestamp(), // For lobby "online" check
+        expireAt: expireAt,            // For Firestore TTL auto-deletion
         hostBoard: [],
         guestBoard: [],
         hostHand: [],
@@ -359,11 +428,80 @@ export default function App() {
     }
   };
 
+  const createAiMatch = async () => {
+    setLoading(true);
+    try {
+      const expireAt = new Date();
+      expireAt.setHours(expireAt.getHours() + 1); // AI matches are short
+
+      // Generate AI Deck/Hand
+      const allCards = Object.keys(CARD_DATABASE);
+      const combatCards = allCards.filter(id => CARD_DATABASE[id].type !== 'support');
+      const supportCards = allCards.filter(id => CARD_DATABASE[id].type === 'support');
+      
+      // Simple random hand generation for AI
+      let aiHand = [];
+      for (let i = 0; i < 2; i++) aiHand.push(supportCards[Math.floor(Math.random() * supportCards.length)]);
+      for (let i = 0; i < 4; i++) aiHand.push(combatCards[Math.floor(Math.random() * combatCards.length)]);
+      // Shuffle
+      aiHand = aiHand.sort(() => 0.5 - Math.random());
+
+      const matchRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'matches'), {
+        hostId: user.uid,
+        hostName: userData.username,
+        guestId: 'AI_COMMANDER',
+        guestName: 'Gemini AI',
+        status: 'active', // Start active immediately
+        turn: 'host',
+        createdAt: serverTimestamp(),
+        lastActive: serverTimestamp(),
+        expireAt: expireAt,
+        hostBoard: [],
+        guestBoard: [],
+        hostHand: [],
+        guestHand: aiHand, // Pre-populated AI Hand
+        hostHP: 20,
+        guestHP: 20,
+        hostMana: 1,
+        guestMana: 1,
+        maxMana: 1,
+        lastEffects: [],
+        lastAction: 'AI Match Started',
+        isAiMatch: true // Flag for AI logic
+      });
+      joinMatch(matchRef.id, true);
+    } catch (e) {
+      console.error(e);
+      showNotif("Failed to start AI match.");
+    }
+  };
+
   const joinMatch = (matchId, isHost = false) => {
     setActiveMatch({ id: matchId, isHost });
     setRewardClaimed(false); 
     setView('game');
   };
+
+  // --- Host Heartbeat ---
+  useEffect(() => {
+    if (!activeMatch || !activeMatch.isHost || !user) return;
+    
+    const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id);
+    
+    // Pulse every 10s
+    const interval = setInterval(() => {
+        // Keep match alive in Lobby (lastActive) AND postpone TTL deletion (expireAt)
+        const expireAt = new Date();
+        expireAt.setHours(expireAt.getHours() + 24);
+
+        updateDoc(matchRef, { 
+            lastActive: serverTimestamp(),
+            expireAt: expireAt 
+        }).catch(e => console.warn("Heartbeat fail", e));
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [activeMatch, user]);
 
   const grantWinReward = async () => {
     if (!userData || !user) return;
@@ -400,6 +538,23 @@ export default function App() {
       const data = snap.data();
       
       if (!activeMatch.isHost && data.status === 'waiting') {
+         // CRITICAL FIX: Prevent Host from joining as Guest (Self-Play Exploit)
+         if (data.hostId === user.uid) {
+             // If we reached here, the UI likely sent them as guest, or they manipulated state.
+             // We can either switch them to host or kick them. 
+             // For safety against the exploit, we stop the "Guest Join" db write.
+             if (joiningRef.current) return; // Already joining?
+             
+             // If they are the host, they shouldn't be here as guest. 
+             // But if we want to support "Resume", the UI should have passed isHost=true.
+             // If we are here, isHost is false. So this is an error/exploit case.
+             console.warn("Prevented self-join.");
+             // showNotif("Reconnecting as Host..."); 
+             // optional: setActiveMatch({ ...activeMatch, isHost: true }); 
+             // For now, just return to avoid the DB write that causes the bug.
+             return;
+         }
+
          if (!data.guestId && !joiningRef.current) {
             joiningRef.current = true; // Prevent loop
             try {
@@ -423,6 +578,8 @@ export default function App() {
             } catch (e) {
               console.error("Join error:", e);
               joiningRef.current = false; // Reset on error
+              showNotif("Join failed. Connection error?");
+              handleLeaveClean();
             }
          } else if (data.guestId && data.guestId !== user.uid) {
             showNotif("Match is full!");
@@ -431,6 +588,10 @@ export default function App() {
       } else {
         setGameState(data);
       }
+    }, (error) => {
+        console.error("Match sync error:", error);
+        showNotif("Connection Lost. Returning to base.");
+        handleLeaveClean();
     });
     return () => unsub();
   }, [view, activeMatch]);
@@ -481,21 +642,40 @@ export default function App() {
   useEffect(() => {
     if (gameState && gameState.lastEffects) {
       const effectsStr = JSON.stringify(gameState.lastEffects);
-      if (effectsStr !== prevEffectsRef.current) {
-        // New effects detected!
+      
+      // Only process if the raw data changed OR if we need to check for staleness
+      // But actually, we just want to filter stale ones.
+      // If we filter stale ones, and the result is empty, we set empty.
+      
+      const now = Date.now();
+      const recentEffects = gameState.lastEffects.filter(fx => {
+          // Check if effect is recent (within 2 seconds)
+          // fx.id is the timestamp
+          return (now - fx.id) < 2000;
+      });
+
+      const recentEffectsStr = JSON.stringify(recentEffects);
+
+      if (recentEffectsStr !== prevEffectsRef.current) {
+        // New valid effects detected!
         const newEffects = {};
-        gameState.lastEffects.forEach(fx => {
-          newEffects[fx.unitId] = { type: fx.type, id: fx.id || Date.now() }; // Add random ID for re-render
+        recentEffects.forEach(fx => {
+          newEffects[fx.unitId] = { type: fx.type, id: fx.id }; 
         });
         
-        setVisualEffects(newEffects);
-        
-        // Clear effects after 1.5s
-        setTimeout(() => {
-          setVisualEffects({});
-        }, 1500);
+        // Only update state if we have something, or if we need to clear
+        if (Object.keys(newEffects).length > 0 || prevEffectsRef.current !== "[]") {
+            setVisualEffects(newEffects);
+            
+            // Clear effects after 1.5s (local cleanup)
+            if (Object.keys(newEffects).length > 0) {
+                setTimeout(() => {
+                    setVisualEffects({});
+                }, 1500);
+            }
+        }
 
-        prevEffectsRef.current = effectsStr;
+        prevEffectsRef.current = recentEffectsStr;
       }
     }
   }, [gameState]);
@@ -511,8 +691,13 @@ export default function App() {
   const myHp = gameState ? (activeMatch?.isHost ? gameState.hostHP : gameState.guestHP) : null;
   const enemyHp = gameState ? (activeMatch?.isHost ? gameState.guestHP : gameState.hostHP) : 0;
   const isMyTurn = gameState ? gameState.turn === (activeMatch?.isHost ? 'host' : 'guest') : false;
-  const myBoard = gameState ? (activeMatch?.isHost ? gameState.hostBoard : gameState.guestBoard) || [] : [];
-  const enemyBoard = gameState ? (activeMatch?.isHost ? gameState.guestBoard : gameState.hostBoard) || [] : [];
+  
+  const myBoardRaw = gameState ? (activeMatch?.isHost ? gameState.hostBoard : gameState.guestBoard) || [] : [];
+  const enemyBoardRaw = gameState ? (activeMatch?.isHost ? gameState.guestBoard : gameState.hostBoard) || [] : [];
+  
+  const myBoard = calculateBuffedBoard(myBoardRaw);
+  const enemyBoard = calculateBuffedBoard(enemyBoardRaw);
+
   const myHand = gameState ? (activeMatch?.isHost ? gameState.hostHand : gameState.guestHand) || [] : [];
   const myMana = gameState ? (activeMatch?.isHost ? gameState.hostMana : gameState.guestMana) : 0;
 
@@ -534,26 +719,127 @@ export default function App() {
   useEffect(() => {
     if (gameState && gameState.lastAction) {
       if (prevLastAction.current !== gameState.lastAction) {
+        const lastAction = gameState.lastAction;
+        const isMyAction = lastAction.startsWith(activeMatch.isHost ? 'Host' : 'Guest');
+        
         // Find if action mentions a tactic card
         const tactic = Object.values(CARD_DATABASE).find(c => 
-          c.type === 'tactic' && gameState.lastAction.includes(c.name)
+          c.type === 'tactic' && lastAction.includes(c.name)
         );
+
         if (tactic) {
-          setSplashCard(tactic);
-          setTimeout(() => setSplashCard(null), 6000);
+           const isIntercepted = lastAction.includes("intercepted by Radar") || lastAction.includes("negated by Radar");
+           
+           // Show if:
+           // 1. I am the victim (Opponent played it)
+           // 2. OR it was intercepted (Show to both for clarity)
+           if (!isMyAction || isIntercepted) {
+              setSplashCard({ ...tactic, intercepted: isIntercepted });
+              setTimeout(() => setSplashCard(null), 2000);
+           }
+        } else if (lastAction.includes("surrendered")) {
+            // Determine if I surrendered
+            const isHost = activeMatch.isHost;
+            const surrenderingRole = lastAction.split(' ')[0]; // 'Host' or 'Guest'
+            const isMe = (surrenderingRole === 'Host' && isHost) || (surrenderingRole === 'Guest' && !isHost);
+            
+            const text = isMe ? "YOU SURRENDERED" : "OPPONENT SURRENDERED";
+            
+            // showNotif removed - using overlay text only
+            setSurrenderEffect(text);
+            setTimeout(() => setSurrenderEffect(null), 2000);
         }
-        prevLastAction.current = gameState.lastAction;
+        prevLastAction.current = lastAction;
       }
     }
-  }, [gameState]);
+  }, [gameState, activeMatch]);
 
-  const handleEndTurn = async () => {
-    if (isProcessing) return;
+  // --- AI Turn Logic ---
+  useEffect(() => {
+    if (!gameState || !activeMatch || !gameState.isAiMatch) return;
+    
+    // If it's Guest's turn (AI) and I am the Host (Player) handling the AI
+    if (gameState.turn === 'guest' && activeMatch.isHost && !isProcessing) {
+        const runAiTurn = async () => {
+            setIsProcessing(true);
+            
+            // 1. Simulate "Thinking" delay
+            await new Promise(r => setTimeout(r, 1500));
+
+            // 2. Prepare Buffed State for AI
+            const aiBoardBuffed = calculateBuffedBoard(gameState.guestBoard);
+            const playerBoardBuffed = calculateBuffedBoard(gameState.hostBoard);
+
+            // 3. Get AI Move
+            // Note: We pass the buffed boards so AI sees stats correctly
+            const move = await getAiMove(gameState, gameState.guestHand, aiBoardBuffed, playerBoardBuffed);
+            console.log("AI Decided:", move);
+
+            try {
+                // 4. Execute Move using Existing Handlers
+                if (move.action === 'SURRENDER') {
+                    await handleSurrender('guest');
+                }
+                else if (move.action === 'PLAY_CARD' && move.cardId) {
+                    const handIndex = gameState.guestHand.indexOf(move.cardId);
+                    if (handIndex !== -1) {
+                        await handlePlayCard(move.cardId, handIndex, 'guest');
+                    } else {
+                        await handleEndTurn('guest');
+                    }
+                }
+                else if (move.action === 'ATTACK' && typeof move.attackerIndex === 'number') {
+                    const attacker = aiBoardBuffed[move.attackerIndex];
+                    if (attacker) {
+                        // We pass the instanceId so handleAttack finds the exact unit
+                        await handleAttack(move.targetIndex, attacker.instanceId, 'guest');
+                    } else {
+                         // AI tried to attack with missing unit or invalid index
+                        await handleEndTurn('guest');
+                    }
+                }
+                else if (move.action === 'USE_ABILITY' && typeof move.unitIndex === 'number') {
+                    const unit = aiBoardBuffed[move.unitIndex];
+                    if (unit) {
+                        if (typeof move.targetIndex === 'number') {
+                             const target = aiBoardBuffed[move.targetIndex];
+                             if (target) {
+                                 await handleSupportAction(unit, target, move.targetIndex, 'guest');
+                             } else {
+                                await handleEndTurn('guest');
+                             }
+                        } else {
+                             await handleUseAbility(unit, 'guest');
+                        }
+                    } else {
+                         await handleEndTurn('guest');
+                    }
+                }
+                else {
+                    // END_TURN or default
+                    await handleEndTurn('guest');
+                }
+            } catch (e) {
+                console.error("AI execution error", e);
+                // Ensure we don't get stuck
+                await handleEndTurn('guest');
+            }
+
+            setIsProcessing(false);
+        };
+        
+        runAiTurn();
+    }
+  }, [gameState, activeMatch]);
+
+  const handleEndTurn = async (forcedSide = null) => {
+    const actualSide = (typeof forcedSide === 'string') ? forcedSide : null;
+    if (isProcessing && !actualSide) return;
     if (!gameState) return;
-    const isHost = activeMatch.isHost;
+    const isHost = actualSide ? (actualSide === 'host') : activeMatch.isHost;
     if (gameState.turn !== (isHost ? 'host' : 'guest')) return;
 
-    setIsProcessing(true);
+    if (!actualSide) setIsProcessing(true); // UI trigger only
     setSelectedUnitId(null);
     const nextTurn = isHost ? 'guest' : 'host';
     const nextMaxMana = Math.min(gameState.maxMana + (isHost ? 0 : 1), 10);
@@ -562,35 +848,51 @@ export default function App() {
       ...u,
       canAttack: true
     }));
+
+    // Passive: Field Hospital (Heal HQ)
+    const myBoardKey = isHost ? 'hostBoard' : 'guestBoard';
+    const myHpKey = isHost ? 'hostHP' : 'guestHP';
+    const myCurrentBoard = gameState[myBoardKey];
+    let newMyHp = gameState[myHpKey];
+    const medics = myCurrentBoard.filter(u => u.id === 'supp_medic');
+    if (medics.length > 0) {
+        newMyHp = Math.min(newMyHp + medics.length, 20);
+        if (newMyHp > gameState[myHpKey]) {
+            showNotif(`Field Hospital restored ${medics.length} HQ Health!`);
+        }
+    }
+
     const update = {
       turn: nextTurn,
       maxMana: nextMaxMana,
       hostMana: nextMaxMana,
       guestMana: nextMaxMana,
-      [nextPlayerBoardKey]: nextPlayerBoard, 
+      [nextPlayerBoardKey]: nextPlayerBoard,
+      [myHpKey]: newMyHp,
       lastAction: `Turn pass to ${nextTurn}`,
       lastEffects: [] 
     };
     const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id);
     await updateDoc(matchRef, update);
-    setTimeout(() => setIsProcessing(false), 1000); 
+    setTimeout(() => { if (!actualSide) setIsProcessing(false); }, 1000); 
   };
 
-  const handlePlayCard = async (cardId, index) => {
-    if (isProcessing) return;
-    const isHost = activeMatch.isHost;
+  const handlePlayCard = async (cardId, index, forcedSide = null) => {
+    const actualSide = (typeof forcedSide === 'string') ? forcedSide : null;
+    if (isProcessing && !actualSide) return;
+    const isHost = actualSide ? (actualSide === 'host') : activeMatch.isHost;
     const myTurn = isHost ? 'host' : 'guest';
-    if (gameState.turn !== myTurn) { showNotif("Not your turn!"); return; }
+    if (gameState.turn !== myTurn) { if(!actualSide) showNotif("Not your turn!"); return; }
     
     const manaKey = isHost ? 'hostMana' : 'guestMana';
     const handKey = isHost ? 'hostHand' : 'guestHand';
     const boardKey = isHost ? 'hostBoard' : 'guestBoard';
     
     const cardData = CARD_DATABASE[cardId];
-    if (gameState[manaKey] < cardData.cost) { showNotif("Not enough supplies!"); return; }
+    if (gameState[manaKey] < cardData.cost) { if(!actualSide) showNotif("Not enough supplies!"); return; }
 
-    setIsProcessing(true);
-    const lockTime = cardData.type === 'tactic' ? 6000 : 1200;
+    if (!actualSide) setIsProcessing(true);
+    const lockTime = cardData.type === 'tactic' ? 2000 : 1000;
 
     const newHand = [...gameState[handKey]];
     newHand.splice(index, 1);
@@ -609,6 +911,22 @@ export default function App() {
     if (cardData.type === 'tactic') {
       if (cardData.effect === 'aoe_2') {
         const enemyBoardKey = isHost ? 'guestBoard' : 'hostBoard';
+        
+        // Passive: Radar Negation
+        const currentEnemyBoard = gameState[enemyBoardKey];
+        if (currentEnemyBoard.some(u => u.id === 'supp_radar')) {
+             showNotif("Air Strike intercepted by Radar!");
+             const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id);
+             await updateDoc(matchRef, {
+               [handKey]: newHand,
+               [manaKey]: gameState[manaKey] - cardData.cost,
+               lastAction: `${isHost?'Host':'Guest'} Air Strike negated by Radar!`,
+               lastEffects: []
+             });
+             setTimeout(() => { if (!actualSide) setIsProcessing(false); }, 1000);
+             return;
+        }
+
         // Calc damage
         const enemyBoard = [...gameState[enemyBoardKey]];
         const fxList = [];
@@ -635,7 +953,7 @@ export default function App() {
              if (finalCleanEnemy.length !== updatedEnemyBoard.length) {
                await updateDoc(matchRef, { [enemyBoardKey]: finalCleanEnemy });
              }
-             setIsProcessing(false);
+             if (!actualSide) setIsProcessing(false);
         }, 2500); // Longer wait for tactics
         return;
       }
@@ -652,30 +970,85 @@ export default function App() {
     };
 
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id), update);
-    setTimeout(() => setIsProcessing(false), lockTime);
+    setTimeout(() => { if (!actualSide) setIsProcessing(false); }, lockTime);
   };
 
-  const handleSupportAction = async (supportUnit, targetUnit, targetIndex) => {
-    if (isProcessing) return;
-    const isHost = activeMatch.isHost;
+  const handleUseAbility = async (unit, forcedSide = null) => {
+    const actualSide = (typeof forcedSide === 'string') ? forcedSide : null;
+    if (isProcessing && !actualSide) return;
+    const isHost = actualSide ? (actualSide === 'host') : activeMatch.isHost;
     if (gameState.turn !== (isHost ? 'host' : 'guest')) {
-        showNotif("Not your turn!");
+        if(!actualSide) showNotif("Not your turn!");
+        return;
+    }
+    if (unit.isAbilityUsed) {
+        if(!actualSide) showNotif("Ability already used!");
+        return;
+    }
+    if (!unit.activeAbility) return;
+
+    if (!actualSide) setIsProcessing(true);
+    const myBoardKey = isHost ? 'hostBoard' : 'guestBoard';
+    const myBoard = [...gameState[myBoardKey]];
+    const unitIndex = myBoard.findIndex(u => u.instanceId === unit.instanceId);
+    
+    if (unitIndex === -1) { setIsProcessing(false); return; }
+
+    const update = {};
+    const fxList = [];
+    const uniqueFxId = Date.now();
+
+    if (unit.activeAbility === 'restore_mana_full') {
+        const manaKey = isHost ? 'hostMana' : 'guestMana';
+        const maxMana = gameState.maxMana; 
+        
+        update[manaKey] = maxMana;
+        update.lastAction = `${unit.name} fully resupplied forces!`;
+        fxList.push({ unitId: unit.instanceId, type: 'action_buff', id: uniqueFxId });
+        showNotif(`Supplies Fully Restored!`);
+    }
+
+    // Mark used
+    myBoard[unitIndex].isAbilityUsed = true;
+    myBoard[unitIndex].canAttack = false; // Using ability consumes action
+    update[myBoardKey] = myBoard;
+    update.lastEffects = fxList;
+
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id), update);
+    
+    setSelectedUnitId(null);
+    setTimeout(() => { if (!actualSide) setIsProcessing(false); }, 1000);
+  };
+
+  const handleSupportAction = async (supportUnit, targetUnit, targetIndex, forcedSide = null) => {
+    const actualSide = (typeof forcedSide === 'string') ? forcedSide : null;
+    if (isProcessing && !actualSide) return;
+    const isHost = actualSide ? (actualSide === 'host') : activeMatch.isHost;
+    if (gameState.turn !== (isHost ? 'host' : 'guest')) {
+        if(!actualSide) showNotif("Not your turn!");
         return;
     }
     if (supportUnit.isAbilityUsed) {
-      showNotif("Support ability already used!");
+      if(!actualSide) showNotif("Support ability already used!");
       return;
     }
     if (supportUnit.canAttack === false) {
-      showNotif("Support unit is busy!");
+      if(!actualSide) showNotif("Support unit is busy!");
       return;
     }
     if (targetUnit.type === 'support') {
-      showNotif("Cannot support another Support unit!");
+      if(!actualSide) showNotif("Cannot support another Support unit!");
       return;
     }
+    
+    // Check if unit has a support effect (Passive-only supports cannot act)
+    if (!supportUnit.supportEffect) {
+       // Optional: Show notification or just return
+       // showNotif("This unit has no active support ability."); 
+       return;
+    }
 
-    setIsProcessing(true);
+    if (!actualSide) setIsProcessing(true);
 
     const myBoardKey = isHost ? 'hostBoard' : 'guestBoard';
     const myBoard = [...gameState[myBoardKey]];
@@ -725,12 +1098,13 @@ export default function App() {
     });
     
     setSelectedUnitId(null); 
-    setTimeout(() => setIsProcessing(false), 1200); 
+    setTimeout(() => { if (!actualSide) setIsProcessing(false); }, 1200); 
   };
 
-  const handleAttack = async (targetIndex = -1) => {
-    if (isProcessing) return;
-    const isHost = activeMatch.isHost;
+  const handleAttack = async (targetIndex = -1, explicitAttackerId = null, forcedSide = null) => {
+    const actualSide = (typeof forcedSide === 'string') ? forcedSide : null;
+    if (isProcessing && !actualSide) return;
+    const isHost = actualSide ? (actualSide === 'host') : activeMatch.isHost;
     if (gameState.turn !== (isHost ? 'host' : 'guest')) return;
     
     const myBoardKey = isHost ? 'hostBoard' : 'guestBoard';
@@ -739,54 +1113,81 @@ export default function App() {
 
     const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id);
     
-    const myBoard = [...gameState[myBoardKey]];
+    // Use Buffed Boards for Stats Calculation (Commanders etc)
+    const myBoardRaw = [...gameState[myBoardKey]];
+    const myBoardBuffed = calculateBuffedBoard(myBoardRaw);
+    
     let attacker;
+    let attackerIndex = -1;
 
-    if (selectedUnitId) {
-      attacker = myBoard.find(u => u.instanceId === selectedUnitId);
+    if (explicitAttackerId) {
+        attacker = myBoardBuffed.find(u => u.instanceId === explicitAttackerId);
+        attackerIndex = myBoardRaw.findIndex(u => u.instanceId === explicitAttackerId);
+    } else if (selectedUnitId) {
+      attacker = myBoardBuffed.find(u => u.instanceId === selectedUnitId);
+      attackerIndex = myBoardRaw.findIndex(u => u.instanceId === selectedUnitId);
     } else {
-      attacker = myBoard.find(u => u.canAttack && u.type !== 'support');
+      attacker = myBoardBuffed.find(u => u.canAttack && u.type !== 'support');
+      attackerIndex = myBoardRaw.findIndex(u => u.canAttack && u.type !== 'support');
     }
 
     if (!attacker) {
-      showNotif("No ready combat units available!");
+      if(!actualSide) showNotif("No ready combat units available!");
       return;
     }
     if (attacker.type === 'support') {
-      showNotif("Support units cannot attack!");
+      if(!actualSide) showNotif("Support units cannot attack!");
       return;
     }
     if (attacker.canAttack === false) {
-      showNotif("Unit is recovering (Zzz)!");
+      if(!actualSide) showNotif("Unit is recovering (Zzz)!");
       return;
     }
 
-    setIsProcessing(true);
+    if (!actualSide) setIsProcessing(true);
 
-    const myUnitIndex = myBoard.findIndex(u => u.instanceId === attacker.instanceId);
-    if (myUnitIndex !== -1) {
-      myBoard[myUnitIndex].canAttack = false;
+    if (attackerIndex !== -1) {
+      myBoardRaw[attackerIndex].canAttack = false;
     }
 
-    let update = { [myBoardKey]: myBoard };
+    let update = { [myBoardKey]: myBoardRaw };
     const fxList = []; 
     const uniqueFxId = Date.now();
 
     fxList.push({ unitId: attacker.instanceId, type: 'action_attack', id: uniqueFxId });
 
     if (targetIndex === -1) {
-      const newEnemyHp = gameState[enemyHpKey] - attacker.atk;
-      update[enemyHpKey] = newEnemyHp;
-      update.lastAction = `${attacker.name} attacked Command Post!`;
-      update.lastEffects = fxList; // Attacker effect only
+      // Passive: Bunker Intercept
+      const enemyBoardRaw = [...gameState[enemyBoardKey]];
+      const bunkerIndex = enemyBoardRaw.findIndex(u => u.id === 'supp_bunker');
 
-      if (newEnemyHp <= 0) {
-        update.status = 'finished';
-        update.winner = user.uid;
+      if (bunkerIndex !== -1) {
+          const bunker = enemyBoardRaw[bunkerIndex];
+          bunker.currentHp -= attacker.atk; // Attacker uses buffed ATK
+          
+          showNotif("Bunker absorbed the attack!");
+          fxList.push({ unitId: bunker.instanceId, type: 'damage', id: uniqueFxId + 1 });
+          
+          update[enemyBoardKey] = enemyBoardRaw;
+          update.lastAction = `${attacker.name} hit Bunker (Guard)!`;
+          update.lastEffects = fxList;
+      } else {
+          const newEnemyHp = gameState[enemyHpKey] - attacker.atk;
+          update[enemyHpKey] = newEnemyHp;
+          update.lastAction = `${attacker.name} attacked Command Post!`;
+          update.lastEffects = fxList; 
+
+          if (newEnemyHp <= 0) {
+            update.status = 'finished';
+            update.winner = user.uid;
+          }
       }
     } else {
-      const enemyBoard = [...gameState[enemyBoardKey]];
-      const target = enemyBoard[targetIndex];
+      const enemyBoardRaw = [...gameState[enemyBoardKey]];
+      const enemyBoardBuffed = calculateBuffedBoard(enemyBoardRaw);
+      
+      const target = enemyBoardRaw[targetIndex];
+      const targetBuffed = enemyBoardBuffed[targetIndex];
       
       if (target.invulnerable) {
         showNotif("Target is INVULNERABLE!");
@@ -801,19 +1202,19 @@ export default function App() {
       fxList.push({ unitId: target.instanceId, type: 'damage', id: uniqueFxId + 2 }); 
       
       if (target.currentHp > 0) {
-        // Recoil only if target survived
-        if (myUnitIndex !== -1) {
-           myBoard[myUnitIndex].currentHp -= target.atk;
+        // Recoil
+        if (attackerIndex !== -1) {
+           myBoardRaw[attackerIndex].currentHp -= targetBuffed.atk; // Target uses buffed ATK
            // FIX 1: Show recoil damage ONLY if enemy had attack power
-           if (target.atk > 0) {
+           if (targetBuffed.atk > 0) {
               fxList.push({ unitId: attacker.instanceId, type: 'damage', id: uniqueFxId + 3 });
            }
         }
       }
 
       // FIX 2: DELAYED DEATH - Keep units in array for animation
-      update[enemyBoardKey] = enemyBoard;
-      update[myBoardKey] = myBoard; 
+      update[enemyBoardKey] = enemyBoardRaw;
+      update[myBoardKey] = myBoardRaw; 
       
       update.lastAction = `${attacker.name} engaged ${target.name}`;
       update.lastEffects = fxList;
@@ -822,21 +1223,23 @@ export default function App() {
     await updateDoc(matchRef, update);
     setSelectedUnitId(null); 
 
-    // Delayed Cleanup Step
-    if (targetIndex !== -1) {
-       setTimeout(async () => {
-          const cleanEnemy = update[enemyBoardKey].filter(u => u.currentHp > 0);
-          const cleanMy = update[myBoardKey].filter(u => u.currentHp > 0);
+    // Delayed Cleanup Step (Always run to catch Bunker deaths too)
+    setTimeout(async () => {
+        const finalEnemy = update[enemyBoardKey] || [...gameState[enemyBoardKey]];
+        const finalMy = update[myBoardKey];
 
-          if (cleanEnemy.length !== update[enemyBoardKey].length || cleanMy.length !== update[myBoardKey].length) {
-             await updateDoc(matchRef, {
-               [enemyBoardKey]: cleanEnemy,
-               [myBoardKey]: cleanMy
-             });
-          }
-       }, 1000);
-    }
-    setTimeout(() => setIsProcessing(false), 1200); 
+        const cleanEnemy = finalEnemy.filter(u => u.currentHp > 0);
+        const cleanMy = finalMy.filter(u => u.currentHp > 0);
+
+        if (cleanEnemy.length !== finalEnemy.length || cleanMy.length !== finalMy.length) {
+            await updateDoc(matchRef, {
+            [enemyBoardKey]: cleanEnemy,
+            [myBoardKey]: cleanMy
+            });
+        }
+    }, 1000);
+    
+    setTimeout(() => { if (!actualSide) setIsProcessing(false); }, 1200); 
   };
 
   const handleBoardClick = (unit, index, isEnemy) => {
@@ -874,9 +1277,10 @@ export default function App() {
     }
   };
 
-  const handleSurrender = async () => {
+  const handleSurrender = async (forcedSide = null) => {
     if (!activeMatch || !gameState) return;
-    const isHost = activeMatch.isHost;
+    const actualSide = (typeof forcedSide === 'string') ? forcedSide : null;
+    const isHost = actualSide ? (actualSide === 'host') : activeMatch.isHost;
     
     const update = {
       status: 'finished',
@@ -946,7 +1350,7 @@ export default function App() {
       <main className="flex-1 overflow-hidden relative">
         {/* Notification Wrapper for centering */}
         {notification && (
-          <div className="absolute top-4 w-full flex justify-center z-50 pointer-events-none">
+          <div className="absolute top-4 w-full flex justify-center z-[300] pointer-events-none">
             <div className="bg-yellow-600 text-black px-6 py-2 rounded-full font-bold shadow-lg animate-bounce border border-yellow-500 pointer-events-auto">
               {notification}
             </div>
@@ -962,12 +1366,31 @@ export default function App() {
            </div>
         )}
 
+        {/* SURRENDER OVERLAY - Global */}
+        {surrenderEffect && (
+           <div className="absolute inset-0 z-[150] flex items-center justify-center pointer-events-none animate-in fade-in zoom-in duration-500">
+                <div className="flex flex-col items-center">
+                    <Flag size={128} className="text-white drop-shadow-[0_0_10px_rgba(0,0,0,0.8)]" />
+                    <div className="text-4xl font-black text-white mt-4 uppercase tracking-widest drop-shadow-[0_0_10px_rgba(0,0,0,0.8)]">{surrenderEffect}</div>
+                </div>
+           </div>
+        )}
+
         {/* CARD SPLASH OVERLAY - Global */}
         {splashCard && (
           <div className="absolute inset-0 z-[200] flex items-center justify-center pointer-events-none bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
-             <div className="flex flex-col items-center animate-in zoom-in duration-500">
-                <div className="text-4xl font-black text-yellow-500 mb-4 drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)] uppercase tracking-widest">OPPONENT PLAYED</div>
-                <Card cardId={splashCard.id} size="large" disabled className="shadow-2xl" />
+             <div className="flex flex-col items-center animate-in zoom-in duration-500 relative">
+                <div className={`text-4xl font-black mb-4 drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)] uppercase tracking-widest ${splashCard.intercepted ? 'text-red-600' : 'text-yellow-500'}`}>
+                    {splashCard.intercepted ? 'INTERCEPTED' : 'OPPONENT PLAYED'}
+                </div>
+                <div className="relative">
+                    <Card cardId={splashCard.id} size="large" disabled className="shadow-2xl" />
+                    {splashCard.intercepted && (
+                        <div className="absolute inset-0 flex items-center justify-center z-50">
+                            <X size={128} className="text-red-600 drop-shadow-[0_0_10px_rgba(0,0,0,1)] animate-pulse" strokeWidth={3} />
+                        </div>
+                    )}
+                </div>
              </div>
           </div>
         )}
@@ -1015,10 +1438,9 @@ export default function App() {
           </Modal>
         )}
 
-        {view === 'home' && <RenderHome setView={setView} setShowTutorial={setShowTutorial} showTutorial={showTutorial} activateTestMode={activateTestMode} />}
-        {view === 'lobby' && <RenderLobby setView={setView} matchesList={matchesList} createMatch={createMatch} joinMatch={joinMatch} />}
-        {view === 'game' && 
-          <GameView 
+                {view === 'home' && <RenderHome setView={setView} setShowTutorial={setShowTutorial} showTutorial={showTutorial} activateTestMode={activateTestMode} />}
+                {view === 'lobby' && <RenderLobby setView={setView} matchesList={matchesList} createMatch={createMatch} joinMatch={joinMatch} user={user} createAiMatch={createAiMatch} />}
+                {view === 'game' &&            <GameView 
              gameState={gameState}
              user={user}
              activeMatch={activeMatch}
@@ -1038,6 +1460,7 @@ export default function App() {
              handleBoardClick={handleBoardClick}
              handlePlayCard={handlePlayCard}
              handleEndTurn={handleEndTurn}
+             handleUseAbility={handleUseAbility}
              CARD_DATABASE={CARD_DATABASE}
              hqHitAnim={null} // Removed localized animation for global overlay
              isProcessing={isProcessing}

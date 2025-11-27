@@ -6,11 +6,33 @@ const GameView = ({
   gameState, user, activeMatch, myMana, myHp, enemyHp, myHand, myBoard, enemyBoard, 
   selectedUnitId, visualEffects, isMyTurn,
   handleCancelMatch, handleSurrender, handleLeaveClean, handleAttack, handleBoardClick, 
-  handlePlayCard, handleEndTurn, CARD_DATABASE, 
+  handlePlayCard, handleEndTurn, handleUseAbility, CARD_DATABASE, 
   isProcessing 
 }) => {
+  const [showResults, setShowResults] = React.useState(false);
+
+  React.useEffect(() => {
+    if (gameState && gameState.status === 'finished') {
+        const timer = setTimeout(() => setShowResults(true), 2500); // 2.5s delay for kill animation
+        return () => clearTimeout(timer);
+    } else {
+        setShowResults(false);
+    }
+  }, [gameState?.status]);
   
-  if (!gameState) return <div className="flex items-center justify-center h-full text-2xl font-mono animate-pulse">Establishing Comms...</div>;
+  if (!gameState) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full space-y-4 animate-pulse">
+         <div className="text-2xl font-mono">Establishing Comms...</div>
+         <button 
+            onClick={handleLeaveClean} 
+            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm rounded border border-gray-600 transition-colors"
+         >
+            Cancel
+         </button>
+      </div>
+    );
+  }
 
   if (gameState.status === 'waiting') {
     return (
@@ -29,9 +51,11 @@ const GameView = ({
       return 'bg-green-900/30 border-green-600/50'; 
   };
 
-  if (gameState.status === 'finished') {
+  const selectedUnit = selectedUnitId ? myBoard.find(u => u.instanceId === selectedUnitId) : null;
+
+  if (gameState.status === 'finished' && showResults) {
     return (
-      <div className="flex flex-col items-center justify-center h-full space-y-4">
+      <div className="flex flex-col items-center justify-center h-full space-y-4 animate-in fade-in zoom-in duration-500">
         <div className="text-6xl font-black uppercase">{gameState.winner === user.uid ? <span className="text-yellow-400">Victory</span> : <span className="text-red-600">Defeat</span>}</div>
         <button onClick={handleLeaveClean} className="px-8 py-3 bg-gray-700 hover:bg-gray-600 rounded font-bold">Return to Base</button>
       </div>
@@ -77,7 +101,17 @@ const GameView = ({
         <div className="w-full h-full overflow-x-auto flex items-start space-x-2 pt-4 pl-28 no-scrollbar">
             {myBoard.map((u, i) => (
               <div key={i} className="relative group cursor-pointer hover:-translate-y-3 transition-all duration-200 min-w-max" onClick={() => handleBoardClick(u, i, false)}>
-                <Card cardId={u.id} size="medium" canAttack={u.canAttack} isDeployed={true} isSelected={selectedUnitId === u.instanceId} isAbilityUsed={u.isAbilityUsed} currentAtk={u.atk} currentDef={u.def} activeEffect={visualEffects[u.instanceId]} />
+                <Card 
+                    cardId={u.id} 
+                    size="medium" 
+                    canAttack={u.canAttack} 
+                    isDeployed={true} 
+                    isSelected={selectedUnitId === u.instanceId} 
+                    isAbilityUsed={u.isAbilityUsed} 
+                    currentAtk={u.atk} 
+                    currentDef={u.def} 
+                    activeEffect={visualEffects[u.instanceId]}
+                />
                 <div className="absolute bottom-0 w-full bg-green-900/80 text-white text-xs text-center font-mono border-t border-green-500">HP: {u.currentHp}</div>
               </div>
             ))}
@@ -87,14 +121,30 @@ const GameView = ({
 
       <div className="h-64 bg-gray-950 border-t-4 border-gray-800 flex relative z-30 shadow-2xl">
         <div className="flex-none w-28 flex flex-col justify-center gap-2 p-2 border-r border-gray-800 bg-gray-900/95 z-40">
-            <div className="bg-blue-900/30 border border-blue-600/50 p-2 rounded text-center shadow-[0_0_15px_rgba(37,99,235,0.2)] backdrop-blur-md">
-              <div className="text-[10px] text-blue-300 uppercase tracking-widest">Supplies</div>
+            {/* Supplies Panel - Handles Active Ability Click */}
+            <div 
+               onClick={() => {
+                  if (selectedUnit && selectedUnit.activeAbility && !selectedUnit.isAbilityUsed && isMyTurn) {
+                      handleUseAbility(selectedUnit);
+                  }
+               }}
+               className={`border p-2 rounded text-center backdrop-blur-md transition-all duration-300 ${
+                  (selectedUnit && selectedUnit.activeAbility && !selectedUnit.isAbilityUsed && isMyTurn) 
+                  ? 'bg-purple-900/50 border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.5)] cursor-pointer hover:bg-purple-800/60 animate-pulse' 
+                  : 'bg-blue-900/30 border-blue-600/50 shadow-[0_0_15px_rgba(37,99,235,0.2)]'
+               }`}
+            >
+              <div className={`text-[10px] uppercase tracking-widest ${(selectedUnit && selectedUnit.activeAbility && !selectedUnit.isAbilityUsed) ? 'text-purple-300 font-bold' : 'text-blue-300'}`}>
+                 {(selectedUnit && selectedUnit.activeAbility && !selectedUnit.isAbilityUsed && isMyTurn) ? 'CLICK TO RESTORE' : 'Supplies'}
+              </div>
               <div className="text-3xl font-black text-white">{myMana} <span className="text-sm text-gray-400 font-normal">/ {gameState.maxMana}</span></div>
             </div>
+
             <div className={`border p-2 rounded text-center backdrop-blur-md transition-colors duration-300 ${getHealthBarClass(myHp)}`}>
               <div className={`text-[10px] uppercase tracking-widest ${myHp <= 9 ? 'text-white' : 'text-green-300'}`}>Health</div>
               <div className="text-3xl font-black text-white">{myHp}</div>
             </div>
+            
             <button onClick={handleEndTurn} disabled={!isMyTurn} className={`py-3 rounded font-bold uppercase text-sm transition-all shadow-lg ${isMyTurn ? 'bg-yellow-600 hover:bg-yellow-500 text-black hover:shadow-yellow-500/50' : 'bg-gray-800 text-gray-500'}`}>End Turn</button>
         </div>
         
