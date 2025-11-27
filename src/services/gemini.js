@@ -72,7 +72,7 @@ export const getAiMove = async (gameState, aiHand, aiBoard, playerBoard) => {
     - Attack: Units can attack enemy units or the HQ (face) if no Taunt units (Bunkers) are present.
     - Counter Attack: Attacking units suffer counter attack damage equal to the defending unit's attack if the defending unit is not destroyed in the attack.
     - Passive Support: Some units have passive abilities that provide some benefit to the player. These benefits apply for as long as the unit is deployed.
-    - Active Support: Support type units have active abilities that can boost a unit or provide some other benefit to the player. Support units cannot boost other support units. Active support abilities can only be used once per battle and will be marked "Depleted" once used.
+    - Active Support: Support units can USE_ABILITY to boost other units or provide some other benefit to the player. Support units marked isDepleted=true are not available for USE_ABILITY. Support units cannot target themselves or other support units.
     - Sleeping Sickness: Cards cannot be used during the turn in which they are played. The only exception are Instant Action cards like "Air Raid" which do not have "sleeping sickness" when played.
     - Invulnerability: Some are invulnerable and cannot be damaged by an attack. 
     - Hand Limit: Each player starts with 2 support cards and 4 combat cards. Players do not receive any new cards once their hand runs out.
