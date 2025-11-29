@@ -389,11 +389,19 @@ export default function App() {
       const combatCards = allCards.filter(id => CARD_DATABASE[id].type !== 'support');
       const supportCards = allCards.filter(id => CARD_DATABASE[id].type === 'support');
       
-      // Simple random hand generation for AI
+      // Simple random hand generation for AI (Unique Supports, 5 Combat)
       let aiHand = [];
-      for (let i = 0; i < 2; i++) aiHand.push(supportCards[Math.floor(Math.random() * supportCards.length)]);
-      for (let i = 0; i < 4; i++) aiHand.push(combatCards[Math.floor(Math.random() * combatCards.length)]);
-      // Shuffle
+      
+      // Select 2 Unique Support Cards
+      // supportCards comes from Object.keys, so they are already unique IDs. 
+      // Just shuffle and take 2 to ensure no duplicates.
+      const shuffledSupports = [...supportCards].sort(() => 0.5 - Math.random());
+      aiHand = [...aiHand, ...shuffledSupports.slice(0, 2)];
+
+      // Select 5 Combat Cards (with replacement allowed, as per original AI logic)
+      for (let i = 0; i < 5; i++) aiHand.push(combatCards[Math.floor(Math.random() * combatCards.length)]);
+      
+      // Shuffle final hand
       aiHand = aiHand.sort(() => 0.5 - Math.random());
 
       const surpriseAttack = Math.random() < 0.5;
@@ -571,18 +579,21 @@ export default function App() {
       });
 
       combatCards.sort(() => 0.5 - Math.random());
-      supportCards.sort(() => 0.5 - Math.random());
+      
+      // Filter for Unique Support Cards (must be unique types)
+      const uniqueSupportCards = [...new Set(supportCards)].sort(() => 0.5 - Math.random());
 
       let hand = [];
       const supportsNeeded = 2;
-      const combatNeeded = 4;
+      const combatNeeded = 5; // Increased to 5
 
-      hand = [...hand, ...supportCards.slice(0, supportsNeeded)];
+      hand = [...hand, ...uniqueSupportCards.slice(0, supportsNeeded)];
       hand = [...hand, ...combatCards.slice(0, combatNeeded)];
       
-      if (hand.length < 6) {
+      // If we couldn't fill the hand (e.g. not enough unique supports or combat cards), fill with remaining randoms
+      if (hand.length < (supportsNeeded + combatNeeded)) {
          const remaining = fullCollection.filter(c => !hand.includes(c)).sort(() => 0.5 - Math.random());
-         hand = [...hand, ...remaining.slice(0, 6 - hand.length)];
+         hand = [...hand, ...remaining.slice(0, (supportsNeeded + combatNeeded) - hand.length)];
       }
 
       const update = {};
