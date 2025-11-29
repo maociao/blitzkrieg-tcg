@@ -353,7 +353,7 @@ export default function App() {
     return () => unsub();
   }, [view, user]);
 
-  const createMatch = async () => {
+  const createMatch = async (mode = 'stud') => {
     setLoading(true);
     try {
       const expireAt = new Date();
@@ -363,6 +363,7 @@ export default function App() {
         hostId: user.uid,
         hostName: userData.username,
         status: 'waiting',
+        mode: mode, // Save Game Mode
         createdAt: serverTimestamp(),
         lastActive: serverTimestamp(), // For lobby "online" check
         expireAt: expireAt,            // For Firestore TTL auto-deletion
@@ -378,7 +379,7 @@ export default function App() {
     }
   };
 
-  const createAiMatch = async () => {
+  const createAiMatch = async (mode = 'stud') => {
     setLoading(true);
     try {
       const expireAt = new Date();
@@ -398,8 +399,8 @@ export default function App() {
       const shuffledSupports = [...supportCards].sort(() => 0.5 - Math.random());
       aiHand = [...aiHand, ...shuffledSupports.slice(0, 2)];
 
-      // Select 5 Combat Cards (with replacement allowed, as per original AI logic)
-      for (let i = 0; i < 5; i++) aiHand.push(combatCards[Math.floor(Math.random() * combatCards.length)]);
+      // Select 4 Combat Cards (with replacement allowed, as per original AI logic)
+      for (let i = 0; i < 4; i++) aiHand.push(combatCards[Math.floor(Math.random() * combatCards.length)]);
       
       // Shuffle final hand
       aiHand = aiHand.sort(() => 0.5 - Math.random());
@@ -412,6 +413,7 @@ export default function App() {
         guestId: 'AI_COMMANDER',
         guestName: 'Gemini AI',
         status: 'active', // Start active immediately
+        mode: mode, // Save Game Mode
         turn: surpriseAttack ? 'guest' : 'host',
         createdAt: serverTimestamp(),
         lastActive: serverTimestamp(),
@@ -585,7 +587,7 @@ export default function App() {
 
       let hand = [];
       const supportsNeeded = 2;
-      const combatNeeded = 5; // Increased to 5
+      const combatNeeded = 4; // Reverted to 4
 
       hand = [...hand, ...uniqueSupportCards.slice(0, supportsNeeded)];
       hand = [...hand, ...combatCards.slice(0, combatNeeded)];
@@ -838,6 +840,8 @@ export default function App() {
     // Passive: Field Hospital (Heal HQ)
     const myBoardKey = isHost ? 'hostBoard' : 'guestBoard';
     const myHpKey = isHost ? 'hostHP' : 'guestHP';
+    const myHandKey = isHost ? 'hostHand' : 'guestHand'; // Identify Hand to update
+    
     const myCurrentBoard = gameState[myBoardKey];
     let newMyHp = gameState[myHpKey];
     const medics = myCurrentBoard.filter(u => u.id === 'supp_medic');
@@ -859,6 +863,93 @@ export default function App() {
       lastAction: `Turn pass to ${nextTurn}`,
       lastEffects: [] 
     };
+
+    // --- DRAW MODE LOGIC (Refill Hand at End of Turn) ---
+    if (gameState.mode === 'draw') {
+        let currentHand = [...gameState[myHandKey]]; // The hand of the player ENDING the turn
+        
+        // Count current types
+        let supportCount = 0;
+        let combatCount = 0;
+        
+        currentHand.forEach(id => {
+            const card = CARD_DATABASE[id];
+            if (card && card.type === 'support') supportCount++;
+            else combatCount++;
+        });
+
+        const supportNeeded = Math.max(0, 2 - supportCount);
+        const combatNeeded = Math.max(0, 4 - combatCount);
+        
+        if (supportNeeded > 0 || combatNeeded > 0) {
+            // 1. AI Logic
+            if (activeMatch.isHost && actualSide === 'guest' && gameState.isAiMatch) {
+                 const allKeys = Object.keys(CARD_DATABASE);
+                 const supportPool = allKeys.filter(k => CARD_DATABASE[k].type === 'support');
+                 const combatPool = allKeys.filter(k => CARD_DATABASE[k].type !== 'support');
+                 
+                 // Refill Support (Try unique if possible, but for AI random is fine)
+                 // AI logic: shuffled supports
+                 const shuffledSupports = supportPool.sort(() => 0.5 - Math.random());
+                 for (let i = 0; i < supportNeeded; i++) {
+                     currentHand.push(shuffledSupports[i % shuffledSupports.length]);
+                 }
+                 
+                 // Refill Combat
+                 for (let i = 0; i < combatNeeded; i++) {
+                     currentHand.push(combatPool[Math.floor(Math.random() * combatPool.length)]);
+                 }
+            } 
+            // 2. Human Logic
+            else if (userData && userData.collection) {
+                 const collection = [...userData.collection];
+                 // Filter out cards currently in hand to simulate deck
+                 const availableDeck = [];
+                 const handCounts = {};
+                 currentHand.forEach(id => handCounts[id] = (handCounts[id] || 0) + 1);
+                 
+                 // Naive deck subtraction: iterate collection, if in hand, decrement count, else add to available
+                 // Actually, simpler: map collection to objects, mark used?
+                 // Let's just create a pool.
+                 const tempHand = [...currentHand];
+                 collection.forEach(id => {
+                     const idx = tempHand.indexOf(id);
+                     if (idx !== -1) {
+                         tempHand.splice(idx, 1); // Remove from temp hand to account for duplicates
+                     } else {
+                         availableDeck.push(id);
+                     }
+                 });
+                 
+                 const supportPool = availableDeck.filter(id => CARD_DATABASE[id] && CARD_DATABASE[id].type === 'support');
+                 const combatPool = availableDeck.filter(id => CARD_DATABASE[id] && CARD_DATABASE[id].type !== 'support');
+                 
+                 // Shuffle pools
+                 supportPool.sort(() => 0.5 - Math.random());
+                 combatPool.sort(() => 0.5 - Math.random());
+                 
+                 // Draw Support
+                 for (let i = 0; i < supportNeeded; i++) {
+                     if (supportPool.length > 0) {
+                         const card = supportPool.pop();
+                         currentHand.push(card);
+                     }
+                 }
+                 
+                 // Draw Combat
+                 for (let i = 0; i < combatNeeded; i++) {
+                     if (combatPool.length > 0) {
+                         const card = combatPool.pop();
+                         currentHand.push(card);
+                     }
+                 }
+            }
+            
+            update[myHandKey] = currentHand;
+        }
+    }
+    // -----------------------
+
     const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id);
     await updateDoc(matchRef, update);
     setTimeout(() => { if (!actualSide) setIsProcessing(false); }, 1000); 

@@ -149,11 +149,43 @@ const GameView = ({
         </div>
         
         <div className="flex-1 flex items-center space-x-4 overflow-x-auto p-2 pb-4">
-            {myHand.map((cardId, i) => (
-            <div key={i} className="hover:-translate-y-2 transition-transform duration-300 z-10 min-w-max">
-                <Card cardId={cardId} size="medium" onClick={() => handlePlayCard(cardId, i)} disabled={!isMyTurn || CARD_DATABASE[cardId].cost > myMana} showInspectHint={false} />
-            </div>
-            ))}
+            {(() => {
+              // 1. Prepare data with original indices
+              const handWithMeta = myHand.map((cardId, index) => ({
+                id: cardId,
+                index, // Keep original index for handlePlayCard
+                type: CARD_DATABASE[cardId]?.type || 'unknown'
+              }));
+
+              // 2. Sort: Support first, then others. Stable sort for others.
+              handWithMeta.sort((a, b) => {
+                const aIsSupport = a.type === 'support';
+                const bIsSupport = b.type === 'support';
+                if (aIsSupport && !bIsSupport) return -1;
+                if (!aIsSupport && bIsSupport) return 1;
+                return a.index - b.index;
+              });
+
+              // 3. Render
+              return handWithMeta.map((item, i) => {
+                // Check if we need a divider (if this is support and next is NOT support)
+                const isSupport = item.type === 'support';
+                const nextIsCombat = handWithMeta[i+1] && handWithMeta[i+1].type !== 'support';
+                const showDivider = isSupport && nextIsCombat;
+
+                return (
+                  <div key={item.index} className={`hover:-translate-y-2 transition-transform duration-300 z-10 min-w-max ${showDivider ? 'mr-12 border-r-2 border-gray-700 pr-4' : ''}`}>
+                      <Card 
+                        cardId={item.id} 
+                        size="medium" 
+                        onClick={() => handlePlayCard(item.id, item.index)} 
+                        disabled={!isMyTurn || CARD_DATABASE[item.id].cost > myMana} 
+                        showInspectHint={false} 
+                      />
+                  </div>
+                );
+              });
+            })()}
         </div>
       </div>
     </div>

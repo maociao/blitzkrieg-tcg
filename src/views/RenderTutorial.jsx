@@ -13,7 +13,7 @@ const RenderTutorial = ({ onClose }) => (
           <li><strong>Cost:</strong> Deploying units consumes Supplies (Mana). You must have enough Supplies to cover the card's cost.</li>
           <li><strong>Supply Drop:</strong> Your Supply cap increases by 1 each round (up to 10), and fully refills at the start of your turn.</li>
           <li><strong>Sleeping Sickness:</strong> Units cannot attack or use abilities the turn they are deployed (Zzz).</li>
-          <li><strong>Hand Limit:</strong> You start with a fixed hand of 7 cards (2 Unique Support, 5 Combat). No new cards are drawn - make them count!</li>
+          <li><strong>Hand Limit:</strong> You start with a fixed hand of 6 cards (2 Unique Support, 4 Combat). No new cards are drawn - make them count! (In Draw Mode, hand refills to 2 Support / 4 Combat each turn).</li>
         </ul>
       </div>
 

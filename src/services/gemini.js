@@ -76,7 +76,9 @@ export const getAiMove = async (gameState, aiHand, aiBoard, playerBoard) => {
     - Healing: Units cannot be healed above their maxHP
     - Sleeping Sickness: Cards cannot be used during the turn in which they are played. The only exception are Instant Action cards like "Air Raid" which do not have "sleeping sickness" when played.
     - Invulnerability: Some units are invulnerable and cannot be damaged by an attack. 
-    - Hand Limit: Each player starts with 2 unique support cards and 5 combat cards. Players do not receive any new cards once their hand runs out.
+    - Hand Limit: ${gameState.mode === 'draw' 
+        ? 'In Draw Mode, hand is refilled to 2 Support and 4 Combat cards at the end of the turn.' 
+        : 'Each player starts with 2 unique support cards and 4 combat cards. Players do not receive any new cards once their hand runs out.'}
     - Winning: Enemy HP <= 0. Enemy surrenders.
 
     **Current State:**
