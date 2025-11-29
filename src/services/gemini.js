@@ -70,11 +70,12 @@ export const getAiMove = async (gameState, aiHand, aiBoard, playerBoard) => {
     **Rules:**
     - Mana: Costs are fixed. You have ${stateSummary.aiMana} mana. You must have enough "aiMana" to cover the "cost" of playing a card.
     - Attack: Units can attack enemy units or the HQ (face) if no Taunt units (Bunkers) are present. Only units with canAttack=true are able to ATTACK.
-    - Counter Attack: Attacking units suffer counter attack damage equal to the defending unit's attack if the defending unit is not destroyed in the attack.
+    - Counter Attack: If a defending unit is not destroyed in an attack, the attacking units suffer counter attack damage equal to the defending unit's attack
     - Passive Support: Some units have passive abilities that provide some benefit to the player. These benefits apply for as long as the unit is deployed.
     - Active Support: Support units can USE_ABILITY to boost other units or provide some other benefit to the player. Support units marked isDepleted=true are not available for USE_ABILITY. Support units cannot target themselves or other support units.
+    - Healing: Units cannot be healed above their maxHP
     - Sleeping Sickness: Cards cannot be used during the turn in which they are played. The only exception are Instant Action cards like "Air Raid" which do not have "sleeping sickness" when played.
-    - Invulnerability: Some are invulnerable and cannot be damaged by an attack. 
+    - Invulnerability: Some units are invulnerable and cannot be damaged by an attack. 
     - Hand Limit: Each player starts with 2 support cards and 4 combat cards. Players do not receive any new cards once their hand runs out.
     - Winning: Enemy HP <= 0. Enemy surrenders.
 
@@ -84,7 +85,7 @@ export const getAiMove = async (gameState, aiHand, aiBoard, playerBoard) => {
     **Instructions:**
     - Analyze the board and hand.
     - Choose the BEST single move.
-    - Prioritize winning (lethal) or destroying high-value threats.
+    - Prioritize defending and using units wisely, destroying high-value threats, and winning (lethal).
     - Valid Actions:
       1. "PLAY_CARD": { "cardId": "string", "index": number (hand index) }
       2. "ATTACK": { "attackerIndex": number, "targetIndex": number (-1 for HQ) }

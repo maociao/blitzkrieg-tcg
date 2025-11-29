@@ -33,6 +33,7 @@ import { auth, db, appId } from './firebase';
 import { CARD_DATABASE } from './data/cards';
 import { GameProvider } from './context/GameContext';
 import { getAiMove } from './services/gemini';
+import { calculateBuffedBoard } from './utils/gameLogic';
 
 // Components
 import Card from './components/Card';
@@ -44,57 +45,6 @@ import RenderCollection from './views/RenderCollection';
 import RenderMarket from './views/RenderMarket';
 import RenderLobby from './views/RenderLobby';
 import GameView from './views/GameView';
-
-// Helper for Passive Effects
-const calculateBuffedBoard = (board) => {
-  if (!board) return [];
-  
-  // 1. Calculate Global Buffs first
-  let globalAtk = 0;
-  let globalDef = 0;
-  
-  board.forEach(u => {
-    if (u.id === 'supp_supply') {
-        globalAtk += 1;
-    }
-    if (u.id === 'supp_hq') {
-        globalAtk += 1;
-        globalDef += 1;
-    }
-  });
-
-  return board.map((unit, index) => {
-    let buffAtk = globalAtk;
-    let buffDef = globalDef;
-    
-    // Check adjacent for Commanders (Patton/Rommel)
-    if (index > 0) {
-      const left = board[index - 1];
-      if (left.id === 'legend_patton' || left.id === 'legend_rommel') {
-         buffAtk += 2;
-         buffDef += 2;
-      }
-    }
-    if (index < board.length - 1) {
-      const right = board[index + 1];
-      if (right.id === 'legend_patton' || right.id === 'legend_rommel') {
-         buffAtk += 2;
-         buffDef += 2;
-      }
-    }
-
-    if (buffAtk === 0 && buffDef === 0) return unit;
-
-    return {
-      ...unit,
-      atk: unit.atk + buffAtk,
-      def: unit.def + buffDef,
-      // Visual only: Boost currentHp to match the def boost so they don't look damaged
-      // Real HP logic handles damage separately.
-      currentHp: unit.currentHp + buffDef 
-    };
-  });
-};
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -446,13 +396,15 @@ export default function App() {
       // Shuffle
       aiHand = aiHand.sort(() => 0.5 - Math.random());
 
+      const surpriseAttack = Math.random() < 0.5;
+
       const matchRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'matches'), {
         hostId: user.uid,
         hostName: userData.username,
         guestId: 'AI_COMMANDER',
         guestName: 'Gemini AI',
         status: 'active', // Start active immediately
-        turn: 'host',
+        turn: surpriseAttack ? 'guest' : 'host',
         createdAt: serverTimestamp(),
         lastActive: serverTimestamp(),
         expireAt: expireAt,
@@ -465,8 +417,9 @@ export default function App() {
         hostMana: 1,
         guestMana: 1,
         maxMana: 1,
+        turnCount: 1,
         lastEffects: [],
-        lastAction: 'AI Match Started',
+        lastAction: surpriseAttack ? 'Surprise Attack! AI moves first.' : 'AI Match Started',
         isAiMatch: true // Flag for AI logic
       });
       joinMatch(matchRef.id, true);
@@ -557,23 +510,25 @@ export default function App() {
 
          if (!data.guestId && !joiningRef.current) {
             joiningRef.current = true; // Prevent loop
+            const surpriseAttack = Math.random() < 0.5;
             try {
               await updateDoc(matchRef, {
                 guestId: user.uid,
                 guestName: userData.username,
                 status: 'active',
-                turn: 'host', 
+                turn: surpriseAttack ? 'guest' : 'host', 
                 hostHP: 20,
                 guestHP: 20,
                 hostMana: 1,
                 guestMana: 1,
                 maxMana: 1,
+                turnCount: 1,
                 hostBoard: [], 
                 guestBoard: [],
                 hostHand: [],
                 guestHand: [],
                 lastEffects: [],
-                lastAction: 'Game Start'
+                lastAction: surpriseAttack ? 'Surprise Attack! Guest moves first.' : 'Game Start'
               });
             } catch (e) {
               console.error("Join error:", e);
@@ -722,6 +677,11 @@ export default function App() {
         const lastAction = gameState.lastAction;
         const isMyAction = lastAction.startsWith(activeMatch.isHost ? 'Host' : 'Guest');
         
+        // SURPRISE ATTACK NOTIFICATION
+        if (lastAction.includes("Surprise Attack!")) {
+             showNotif(lastAction);
+        }
+
         // Find if action mentions a tactic card
         const tactic = Object.values(CARD_DATABASE).find(c => 
           c.type === 'tactic' && lastAction.includes(c.name)
@@ -842,12 +802,27 @@ export default function App() {
     if (!actualSide) setIsProcessing(true); // UI trigger only
     setSelectedUnitId(null);
     const nextTurn = isHost ? 'guest' : 'host';
-    const nextMaxMana = Math.min(gameState.maxMana + (isHost ? 0 : 1), 10);
+    
+    // FIX: Calculate Mana based on absolute Turn Count to support Surprise Attacks (Guest First)
+    // Round 1 (Turns 1-2): 1 Mana
+    // Round 2 (Turns 3-4): 2 Mana
+    const currentTurnCount = gameState.turnCount || (gameState.maxMana * 2 - (isHost ? 0 : 1)); // Fallback approximation
+    const nextTurnCount = currentTurnCount + 1;
+    const nextMaxMana = Math.min(Math.ceil(nextTurnCount / 2), 10);
+    
     const nextPlayerBoardKey = isHost ? 'guestBoard' : 'hostBoard';
-    const nextPlayerBoard = [...gameState[nextPlayerBoardKey]].map(u => ({
-      ...u,
-      canAttack: true
-    }));
+    
+    // FIX: Robustly filter out dead units to prevent resurrection race conditions
+    // FIX 2: Use Buffed HP for this check too!
+    const boardToCheck = gameState[nextPlayerBoardKey];
+    const boardBuffed = calculateBuffedBoard(boardToCheck);
+    
+    const nextPlayerBoard = boardToCheck
+      .filter((_, i) => boardBuffed[i].currentHp > 0)
+      .map(u => ({
+        ...u,
+        canAttack: true
+      }));
 
     // Passive: Field Hospital (Heal HQ)
     const myBoardKey = isHost ? 'hostBoard' : 'guestBoard';
@@ -864,6 +839,7 @@ export default function App() {
 
     const update = {
       turn: nextTurn,
+      turnCount: nextTurnCount,
       maxMana: nextMaxMana,
       hostMana: nextMaxMana,
       guestMana: nextMaxMana,
@@ -947,14 +923,20 @@ export default function App() {
            lastEffects: fxList // Trigger explosions on ALL targets
         });
         
-        // Delayed Cleanup for Tactic
-        setTimeout(async () => {
-             const finalCleanEnemy = updatedEnemyBoard.filter(u => u.currentHp > 0);
-             if (finalCleanEnemy.length !== updatedEnemyBoard.length) {
-               await updateDoc(matchRef, { [enemyBoardKey]: finalCleanEnemy });
-             }
-             if (!actualSide) setIsProcessing(false);
-        }, 2500); // Longer wait for tactics
+        // Delayed Cleanup for Tactic (Async Wait)
+        await new Promise(r => setTimeout(r, 2500));
+        
+        // FIX: Use Buffed HP for survival check
+        const enemyBoardForCleanup = updatedEnemyBoard; // This is the raw state with damage applied
+        const enemyBoardBuffed = calculateBuffedBoard(enemyBoardForCleanup);
+        
+        const finalCleanEnemy = enemyBoardForCleanup.filter((_, i) => enemyBoardBuffed[i].currentHp > 0);
+
+        if (finalCleanEnemy.length !== updatedEnemyBoard.length) {
+            await updateDoc(matchRef, { [enemyBoardKey]: finalCleanEnemy });
+        }
+        if (!actualSide) setIsProcessing(false);
+        
         return;
       }
     } else {
@@ -1179,7 +1161,11 @@ export default function App() {
 
           if (newEnemyHp <= 0) {
             update.status = 'finished';
-            update.winner = user.uid;
+            // Correct Winner Logic: If I am Host (Attacker), I win. If I am Guest (Attacker), I win.
+            // But wait, 'isHost' here is "Am I the attacker?".
+            // If isHost is true, attacker is Host. Winner is Host ID.
+            // If isHost is false, attacker is Guest. Winner is Guest ID.
+            update.winner = isHost ? gameState.hostId : gameState.guestId;
           }
       }
     } else {
@@ -1223,23 +1209,27 @@ export default function App() {
     await updateDoc(matchRef, update);
     setSelectedUnitId(null); 
 
-    // Delayed Cleanup Step (Always run to catch Bunker deaths too)
-    setTimeout(async () => {
-        const finalEnemy = update[enemyBoardKey] || [...gameState[enemyBoardKey]];
-        const finalMy = update[myBoardKey];
+    // Delayed Cleanup Step (Async Wait to prevent AI Race Conditions)
+    await new Promise(r => setTimeout(r, 1000));
 
-        const cleanEnemy = finalEnemy.filter(u => u.currentHp > 0);
-        const cleanMy = finalMy.filter(u => u.currentHp > 0);
+    const finalEnemy = update[enemyBoardKey] || [...gameState[enemyBoardKey]];
+    const finalMy = update[myBoardKey];
 
-        if (cleanEnemy.length !== finalEnemy.length || cleanMy.length !== finalMy.length) {
-            await updateDoc(matchRef, {
+    // FIX: Use Buffed HP to determine survival (so Buffs act as real HP)
+    const finalEnemyBuffed = calculateBuffedBoard(finalEnemy);
+    const finalMyBuffed = calculateBuffedBoard(finalMy);
+
+    const cleanEnemy = finalEnemy.filter((_, i) => finalEnemyBuffed[i].currentHp > 0);
+    const cleanMy = finalMy.filter((_, i) => finalMyBuffed[i].currentHp > 0);
+
+    if (cleanEnemy.length !== finalEnemy.length || cleanMy.length !== finalMy.length) {
+        await updateDoc(matchRef, {
             [enemyBoardKey]: cleanEnemy,
             [myBoardKey]: cleanMy
-            });
-        }
-    }, 1000);
-    
-    setTimeout(() => { if (!actualSide) setIsProcessing(false); }, 1200); 
+        });
+    }
+
+    if (!actualSide) setIsProcessing(false); 
   };
 
   const handleBoardClick = (unit, index, isEnemy) => {
