@@ -18,7 +18,7 @@
 - [x] Add card description to cards on board for AI prompt.
 - [x] Add last action to AI prompt
 - [ ] Improve AI performance and wait time experience.
-- [ ] AI scaling (should use same barracks/collection as player)
+- [X] AI scaling (should use same barracks/collection as player)
 
 ## New functionality
 - [x] Add AI opponent for solo play.
@@ -46,12 +46,12 @@
 - [X] Increase P-51 Mustang HP to 4
 - [X] Reduce cost of Commanders to 6
 - [X] Reduce cost of Forward HQ to 5
-- [ ] Reduce cost of Radar Station to 2
-- [ ] Reduce defense of Radar Station to 4
-- [ ] Remove the passive effect of commanders
-- [ ] Increase p-51 Mustang defense to 4
-- [ ] Use of supply crate should trigger the same visual effect as air raid
-- [ ] Reverse the passive/active ability of the field hospital
+- [X] Reduce cost of Radar Station to 2
+- [X] Reduce defense of Radar Station to 4
+- [X] Remove the passive effect of commanders
+- [X] Increase p-51 Mustang defense to 4
+- [ ] Reverse the passive/active ability of the field hospital (undecided)
+- [ ] Supply truck passive only applies to ground units (infantry, tanks, engineers, commanders)
 
 ### New Passive cards
 - [x] While a Concrete Bunker is deployed it takes damage instead of the HQ when the HQ is targeted

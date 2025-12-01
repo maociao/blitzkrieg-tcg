@@ -385,7 +385,12 @@ export default function App() {
       expireAt.setHours(expireAt.getHours() + 1); // AI matches are short
 
       // Generate AI Deck/Hand
-      const allCards = Object.keys(CARD_DATABASE).filter(id => !CARD_DATABASE[id].isToken);
+      // BALANCING: AI uses Player's Collection (or fallback if empty)
+      const sourceCollection = (userData.collection && userData.collection.length > 0)
+        ? userData.collection
+        : Object.keys(CARD_DATABASE);
+
+      const allCards = sourceCollection.filter(id => !CARD_DATABASE[id].isToken);
       const combatCards = allCards.filter(id => CARD_DATABASE[id].type !== 'support');
       const supportCards = allCards.filter(id => CARD_DATABASE[id].type === 'support');
 
@@ -399,7 +404,12 @@ export default function App() {
       aiHand = [...aiHand, ...shuffledSupports.slice(0, 2)];
 
       // Select 5 Combat Cards (with replacement allowed, as per original AI logic)
-      for (let i = 0; i < 5; i++) aiHand.push(combatCards[Math.floor(Math.random() * combatCards.length)]);
+      if (combatCards.length > 0) {
+        for (let i = 0; i < 5; i++) aiHand.push(combatCards[Math.floor(Math.random() * combatCards.length)]);
+      } else {
+        // Fallback if no combat cards (unlikely)
+        aiHand = [...aiHand, 'inf_rifle', 'inf_rifle', 'inf_rifle', 'inf_rifle', 'inf_rifle'];
+      }
 
       // Shuffle final hand
       aiHand = aiHand.sort(() => 0.5 - Math.random());
@@ -749,8 +759,9 @@ export default function App() {
       const runAiTurn = async () => {
         setIsProcessing(true);
 
-        // 1. Simulate "Thinking" delay
-        await new Promise(r => setTimeout(r, 1500));
+        // 1. Simulate "Thinking" delay - REDUCED for better performance
+        // Was 1500ms, now 100ms just to ensure state is settled
+        await new Promise(r => setTimeout(r, 100));
 
         // 2. Prepare Buffed State for AI
         const aiBoardBuffed = calculateBuffedBoard(gameState.guestBoard);
