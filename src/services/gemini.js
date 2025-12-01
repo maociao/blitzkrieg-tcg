@@ -17,38 +17,38 @@ export const getAiMove = async (gameState, aiHand, aiBoard, playerBoard) => {
 
   // 1. Serialize Game State
   const serializeCard = (id) => {
-      const c = CARD_DATABASE[id];
-      if (!c) return { id, name: "Unknown" };
-      return {
-          id, 
-          name: c.name, 
-          cost: c.cost, 
-          atk: c.atk, 
-          def: c.def, 
-          desc: c.desc, 
-          type: c.type,
-          activeAbility: c.activeAbility,
-          supportEffect: c.supportEffect
-      };
+    const c = CARD_DATABASE[id];
+    if (!c) return { id, name: "Unknown" };
+    return {
+      id,
+      name: c.name,
+      cost: c.cost,
+      atk: c.atk,
+      def: c.def,
+      desc: c.desc,
+      type: c.type,
+      activeAbility: c.activeAbility,
+      supportEffect: c.supportEffect
+    };
   };
 
   const serializeUnit = (u, i) => {
-      const c = CARD_DATABASE[u.id] || {};
-      const isSupport = c.type === 'support';
-      return { 
-          index: i, 
-          id: u.id, 
-          name: u.name, 
-          atk: u.atk, 
-          currentHp: u.currentHp, 
-          maxHp: u.def,
-          desc: c.desc, 
-          canAttack: isSupport ? false : u.canAttack,
-          isDepleted: isSupport ? (u.isAbilityUsed || !u.canAttack) : undefined, 
-          activeAbility: c.activeAbility, 
-          supportEffect: c.supportEffect,  
-          isTaunt: u.id === 'supp_bunker'
-      };
+    const c = CARD_DATABASE[u.id] || {};
+    const isSupport = c.type === 'support';
+    return {
+      index: i,
+      id: u.id,
+      name: u.name,
+      atk: u.atk,
+      currentHp: u.currentHp,
+      maxHp: u.def,
+      desc: c.desc,
+      canAttack: isSupport ? false : u.canAttack,
+      isDepleted: isSupport ? (u.isAbilityUsed || !u.canAttack) : undefined,
+      activeAbility: c.activeAbility,
+      supportEffect: c.supportEffect,
+      isTaunt: u.id === 'supp_bunker'
+    };
   };
 
   const stateSummary = {
@@ -76,8 +76,9 @@ export const getAiMove = async (gameState, aiHand, aiBoard, playerBoard) => {
     - Healing: Units cannot be healed above their maxHP
     - Sleeping Sickness: Cards cannot be used during the turn in which they are played. The only exception are Instant Action cards like "Air Raid" which do not have "sleeping sickness" when played.
     - Invulnerability: Some units are invulnerable and cannot be damaged by an attack. 
-    - Hand Limit: Each player starts with 2 unique support cards and 5 combat cards. Players do not receive any new cards once their hand runs out.
+    - Hand Limit: Each player starts with 2 unique support cards and 5 combat cards. No new cards are received once hand runs out.
     - Winning: Enemy HP <= 0. Enemy surrenders.
+    - **IMPORTANT**: Bunkers (supp_bunker) can ONLY target Infantry units with their ability. Do not attempt to use Bunker on Tanks or Air units.
 
     **Current State:**
     ${JSON.stringify(stateSummary, null, 2)}
@@ -103,7 +104,7 @@ export const getAiMove = async (gameState, aiHand, aiBoard, playerBoard) => {
     const result = await model.generateContent(prompt);
     const response = result.response;
     const text = response.text();
-    
+
     // Clean markdown if present (Gemini sometimes adds ```json)
     const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(jsonStr);

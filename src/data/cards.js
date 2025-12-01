@@ -7,8 +7,8 @@ export const CARD_DATABASE = {
     artPrompt: 'ww2 us infantry soldier running combat ink watercolor sketch'
   },
   'inf_sniper': {
-    id: 'inf_sniper', name: 'Sniper Elite', type: 'infantry', cost: 2, atk: 3, def: 1, rarity: 'uncommon',
-    desc: 'High damage, low defense.',
+    id: 'inf_sniper', name: 'Sniper Elite', type: 'infantry', cost: 2, atk: 2, def: 2, rarity: 'uncommon',
+    desc: 'Anti-Infantry Specialist.',
     history: 'Snipers played a crucial psychological role, targeting officers and radiomen. The Soviet Lyudmila Pavlichenko famously confirmed 309 kills. "The only thing I feel when I kill a Nazi is the recoil of my rifle." - Lyudmila Pavlichenko',
     artPrompt: 'ww2 sniper ghillie suit aiming rifle forest ink watercolor sketch'
   },
@@ -64,13 +64,13 @@ export const CARD_DATABASE = {
   // --- Support Cards (New) ---
   'supp_bunker': {
     id: 'supp_bunker', name: 'Concrete Bunker', type: 'support', cost: 2, atk: 0, def: 8, rarity: 'common',
-    desc: 'Passive: Absorb HQ damage. Active: Fortify (+3 HP).', supportEffect: {type: 'buff_def', val: 3},
+    desc: 'Passive: Absorb HQ damage. Active: Fortify (+3 HP).', supportEffect: { type: 'buff_def', val: 3 },
     history: 'The Atlantic Wall was a system of coastal fortifications built by Nazi Germany, featuring thousands of concrete bunkers. Despite the concrete and steel, they were static targets for naval bombardment and aerial bombing.',
     artPrompt: 'ww2 concrete bunker defensive normandy ink watercolor sketch'
   },
   'supp_medic': {
     id: 'supp_medic', name: 'Field Hospital', type: 'support', cost: 1, atk: 0, def: 4, rarity: 'common',
-    desc: 'Passive: Heal HQ +1/turn. Active: Heal unit (+4 HP).', supportEffect: {type: 'heal', val: 4},
+    desc: 'Passive: Heal HQ +1/turn. Active: Heal unit (+4 HP).', supportEffect: { type: 'heal', val: 4 },
     history: 'Field medics and hospitals saved countless lives. Penicillin was mass-produced for the first time, drastically reducing infection deaths. "The real heroes of the war are the men who carry the stretchers." - Combat Veteran',
     artPrompt: 'ww2 red cross medical tent field hospital ink watercolor sketch'
   },
@@ -82,7 +82,7 @@ export const CARD_DATABASE = {
   },
   'supp_radar': {
     id: 'supp_radar', name: 'Radar Station', type: 'support', cost: 3, atk: 0, def: 5, rarity: 'rare',
-    desc: 'Passive: Negate Air Strikes. Active: Target (+1 ATK).', supportEffect: {type: 'buff_atk', val: 1},
+    desc: 'Passive: Negate Air Strikes. Active: Target (+1 ATK).', supportEffect: { type: 'buff_atk', val: 1 },
     history: 'RADAR (RAdio Detection And Ranging) gave the RAF a critical advantage in the Battle of Britain, allowing them to scramble fighters to intercept raids. It was a closely guarded secret that changed the nature of warfare.',
     artPrompt: 'ww2 radar antenna dish radio tower ink watercolor sketch'
   },
@@ -91,6 +91,13 @@ export const CARD_DATABASE = {
     desc: 'Passive: All units +1/+1. Invulnerable.', invulnerable: true,
     history: 'Field headquarters coordinated vast movements of troops. Communications were key, often using encrypted Enigma machines or Navajo code talkers. "Amateurs talk strategy. Professionals talk logistics." - Gen. Omar Bradley',
     artPrompt: 'ww2 generals map table command tent strategy ink watercolor sketch'
+  },
+  'item_coin': {
+    id: 'item_coin', name: 'Supply Crate', type: 'tactic', cost: 0, atk: 0, def: 0, rarity: 'common',
+    desc: 'Gain +1 Supply this turn.', effect: 'restore_mana_1',
+    history: 'Logistics wins wars. Extra supplies dropped by parachute could turn the tide of a skirmish.',
+    artPrompt: 'ww2 wooden supply crate parachute drop field ink watercolor sketch',
+    isToken: true
   },
 };
 
