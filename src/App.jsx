@@ -406,6 +406,11 @@ export default function App() {
 
       const surpriseAttack = Math.random() < 0.5;
 
+      // BALANCING: If AI goes second (!surpriseAttack), give it a Supply Crate
+      if (!surpriseAttack) {
+        aiHand.push('item_coin');
+      }
+
       const matchRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'matches'), {
         hostId: user.uid,
         hostName: userData.username,

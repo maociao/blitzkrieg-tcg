@@ -37,7 +37,7 @@ export const CARD_DATABASE = {
     artPrompt: 'ww2 spitfire fighter plane flying clouds ink watercolor sketch'
   },
   'air_mustang': {
-    id: 'air_mustang', name: 'P-51 Mustang', type: 'air', cost: 4, atk: 5, def: 3, rarity: 'rare',
+    id: 'air_mustang', name: 'P-51 Mustang', type: 'air', cost: 4, atk: 5, def: 4, rarity: 'rare',
     desc: 'Long range escort.',
     history: 'Fitted with the Merlin engine, the P-51 had the range to escort bombers deep into Germany, changing the course of the air war. "When I saw Mustangs over Berlin, I knew the jig was up." - Hermann Göring',
     artPrompt: 'ww2 p51 mustang silver fighter plane blue sky ink watercolor sketch'
@@ -50,13 +50,13 @@ export const CARD_DATABASE = {
   },
   'legend_patton': {
     id: 'legend_patton', name: 'Gen. Patton', type: 'commander', cost: 6, atk: 5, def: 8, rarity: 'limited',
-    desc: 'Passive: +2/+2 to adjacent units.',
+    desc: 'Aggressive Commander.',
     history: 'George S. Patton ("Old Blood and Guts") led the US Third Army across France at breakneck speed. Known for his aggressive philosophy: "A good plan violently executed now is better than a perfect plan executed next week."',
     artPrompt: 'ww2 general patton portrait uniform rugged ink watercolor sketch'
   },
   'legend_rommel': {
     id: 'legend_rommel', name: 'Desert Fox', type: 'commander', cost: 6, atk: 6, def: 7, rarity: 'limited',
-    desc: 'Passive: +2/+2 to adjacent units.',
+    desc: 'Tactical Genius.',
     history: 'Erwin Rommel earned respect from both sides for his chivalry and tactical brilliance in the North African campaign. He was implicated in the plot against Hitler and forced to commit suicide. "Don\'t fight a battle if you don\'t gain anything by winning."',
     artPrompt: 'erwin rommel german ww2 general desert uniform portrait ink watercolor sketch'
   },
@@ -81,7 +81,7 @@ export const CARD_DATABASE = {
     artPrompt: 'ww2 army truck cargo supplies mud ink watercolor sketch'
   },
   'supp_radar': {
-    id: 'supp_radar', name: 'Radar Station', type: 'support', cost: 3, atk: 0, def: 5, rarity: 'rare',
+    id: 'supp_radar', name: 'Radar Station', type: 'support', cost: 2, atk: 0, def: 4, rarity: 'rare',
     desc: 'Passive: Negate Air Strikes. Active: Target (+1 ATK).', supportEffect: { type: 'buff_atk', val: 1 },
     history: 'RADAR (RAdio Detection And Ranging) gave the RAF a critical advantage in the Battle of Britain, allowing them to scramble fighters to intercept raids. It was a closely guarded secret that changed the nature of warfare.',
     artPrompt: 'ww2 radar antenna dish radio tower ink watercolor sketch'
