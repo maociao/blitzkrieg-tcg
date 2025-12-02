@@ -398,9 +398,9 @@ export default function App() {
       let aiHand = [];
 
       // Select 2 Unique Support Cards
-      // supportCards comes from Object.keys, so they are already unique IDs. 
-      // Just shuffle and take 2 to ensure no duplicates.
-      const shuffledSupports = [...supportCards].sort(() => 0.5 - Math.random());
+      // Deduplicate support cards from collection to ensure AI doesn't get 2 of the same
+      const uniqueSupportCards = [...new Set(supportCards)];
+      const shuffledSupports = uniqueSupportCards.sort(() => 0.5 - Math.random());
       aiHand = [...aiHand, ...shuffledSupports.slice(0, 2)];
 
       // Select 5 Combat Cards (with replacement allowed, as per original AI logic)

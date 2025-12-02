@@ -31,7 +31,7 @@ export const CARD_DATABASE = {
     artPrompt: 'ww2 tiger tank heavy armor imposing ink watercolor sketch'
   },
   'air_spitfire': {
-    id: 'air_spitfire', name: 'Spitfire', type: 'air', cost: 3, atk: 4, def: 2, rarity: 'common',
+    id: 'air_spitfire', name: 'Spitfire', type: 'air', cost: 3, atk: 4, def: 3, rarity: 'common',
     desc: 'Fast interceptor.',
     history: 'The hero of the Battle of Britain. Its elliptical wings gave it superior agility, allowing it to outturn many adversaries. "Never in the field of human conflict was so much owed by so many to so few." - Winston Churchill',
     artPrompt: 'ww2 spitfire fighter plane flying clouds ink watercolor sketch'

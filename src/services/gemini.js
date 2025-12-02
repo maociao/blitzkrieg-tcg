@@ -79,6 +79,7 @@ export const getAiMove = async (gameState, aiHand, aiBoard, playerBoard) => {
     - Hand Limit: Each player starts with 2 unique support cards and 5 combat cards. No new cards are received once hand runs out.
     - Winning: Enemy HP <= 0. Enemy surrenders.
     - **IMPORTANT**: Bunkers (supp_bunker) can ONLY target Infantry units with their ability. Do not attempt to use Bunker on Tanks or Air units.
+    - **IMPORTANT**: Units of type "support" cannot target themselves or other support units.
 
     **Current State:**
     ${JSON.stringify(stateSummary, null, 2)}

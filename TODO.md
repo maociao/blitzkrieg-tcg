@@ -7,9 +7,9 @@
     - Reduce the duration of the notification from 6 seconds to 1.2
     - Fix notification z to appear with card instead of behind blur overlay 
 - [x] Before showing Victory and Defeat screens give pause to allow the killing blow to play out.
-- [ ] Add card sort and filter to collection view.
-- [ ] Sort deck view by card type (support, instant, combat) 
-- [ ] automatically select the first card in deployed hand at the beginning of a turn (already the case but indicator is not visible)
+- [X] Add card sort and filter to collection view.
+- [X] Sort deck view by card type (support, instant, combat) 
+- [X] automatically select the first card in deployed hand at the beginning of a turn (already the case but indicator is not visible)
 
 ## Refactor
 - [ ] Reduce size of App.jsx
