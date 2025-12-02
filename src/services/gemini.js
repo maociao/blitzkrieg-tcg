@@ -69,17 +69,13 @@ export const getAiMove = async (gameState, aiHand, aiBoard, playerBoard) => {
     
     **Rules:**
     - Mana: Costs are fixed. You have ${stateSummary.aiMana} mana. You must have enough "aiMana" to cover the "cost" of playing a card.
-    - Attack: Units can attack enemy units or the HQ (face). Only units with canAttack=true are available for ATTACK.
-    - Counter Attack: If a defending unit is not destroyed in an attack, the attacking units suffer counter attack damage equal to the defending unit's attack
-    - Passive Support: Some units have passive abilities that provide some benefit to the player. These benefits apply for as long as the unit is deployed.
-    - Active Support: Support units can USE_ABILITY to boost other units or provide some other benefit to the player. Support units marked isDepleted=true are not available for USE_ABILITY. Support units cannot target themselves or other support units.
-    - Healing: Units cannot be healed above their maxHP
+    - Attack: Units with canAttack=true can ATTACK enemy units or the HQ (face).
+    - Counter Attack: If a defending unit is not destroyed in an attack, the defending unit is can counter attack the attacking unit. The same passive support effect applies to the counter attack as a normal attack.
+    - Passive Support: Some units have passive abilities that provide some benefit to other units. These benefits apply for as long as the unit is deployed.
+    - Tactics: Tactic cards (like Supply Truck, Air Strike) are one-time use effects that are discarded after play.
     - Sleeping Sickness: Cards cannot be used during the turn in which they are played. The only exception are Instant Action cards like "Air Raid" which do not have "sleeping sickness" when played.
-    - Invulnerability: Some units are invulnerable and cannot be damaged by an attack. 
     - Hand Limit: Each player starts with 2 unique support cards and 5 combat cards. No new cards are received once hand runs out.
-    - Winning: Enemy HP <= 0. Enemy surrenders.
-    - **IMPORTANT**: Bunkers (supp_bunker) can ONLY target Infantry units with their ability. Do not attempt to use Bunker on Tanks or Air units.
-    - **IMPORTANT**: Units of type "support" cannot target themselves or other support units.
+    - Winning: playerHP <= 0. Player surrenders.
 
     **Current State:**
     ${JSON.stringify(stateSummary, null, 2)}
@@ -87,14 +83,13 @@ export const getAiMove = async (gameState, aiHand, aiBoard, playerBoard) => {
     **Instructions:**
     - Analyze the board and hand.
     - Choose the BEST single move.
-    - Prioritize defending your units, destroying the enemy's units, and defeating the opponent's HQ. 
+    - Prioritize protecting your units and defeating the opponent's HQ. 
     - Use units wisely, anticipating the opponent's next move. Ignore enemy bunkers.
     - Valid Actions:
       1. "PLAY_CARD": { "cardId": "string", "index": number (hand index) }
       2. "ATTACK": { "attackerIndex": number, "targetIndex": number (-1 for HQ) }
-      3. "USE_ABILITY": { "unitIndex": number, "targetIndex": number (optional: required for Support units to target ally, omitted for Active Ability like Supply Truck) }
-      4. "SURRENDER": {}
-      5. "END_TURN": {}
+      3. "SURRENDER": {}
+      4. "END_TURN": {}
     
     **Output Format:**
     Return ONLY raw JSON. No markdown. No explanation.

@@ -25,7 +25,7 @@ export const CARD_DATABASE = {
     artPrompt: 'ww2 german panzer tank desert camouflage ink watercolor sketch'
   },
   'tank_tiger': {
-    id: 'tank_tiger', name: 'Tiger I', type: 'tank', cost: 4, atk: 6, def: 6, rarity: 'rare',
+    id: 'tank_tiger', name: 'Tiger I', type: 'tank', cost: 5, atk: 6, def: 6, rarity: 'rare',
     desc: 'Heavy armor beast.',
     history: 'Feared by Allied crews, the Tiger I featured thick armor and a devastating 88mm gun. However, it was mechanically complex and prone to breakdowns. A single Tiger could hold off a dozen Shermans, but they were often defeated by fuel shortages and their own weight.',
     artPrompt: 'ww2 tiger tank heavy armor imposing ink watercolor sketch'
@@ -62,33 +62,34 @@ export const CARD_DATABASE = {
   },
 
   // --- Support Cards (New) ---
+  // --- Support Cards (New) ---
   'supp_bunker': {
-    id: 'supp_bunker', name: 'Concrete Bunker', type: 'support', cost: 2, atk: 0, def: 8, rarity: 'common',
-    desc: 'Passive: Absorb HQ damage. Active: Fortify (+3 HP).', supportEffect: { type: 'buff_def', val: 3 },
+    id: 'supp_bunker', name: 'Concrete Bunker', type: 'support', cost: 2, atk: 0, def: 6, rarity: 'common',
+    desc: 'Passive: Absorb damage targeting Infantry.',
     history: 'The Atlantic Wall was a system of coastal fortifications built by Nazi Germany, featuring thousands of concrete bunkers. Despite the concrete and steel, they were static targets for naval bombardment and aerial bombing.',
     artPrompt: 'ww2 concrete bunker defensive normandy ink watercolor sketch'
   },
   'supp_medic': {
     id: 'supp_medic', name: 'Field Hospital', type: 'support', cost: 1, atk: 0, def: 4, rarity: 'common',
-    desc: 'Passive: Heal HQ +1/turn. Active: Heal unit (+4 HP).', supportEffect: { type: 'heal', val: 4 },
+    desc: 'Passive: Heal all friendly Infantry +1 HP at start of turn.',
     history: 'Field medics and hospitals saved countless lives. Penicillin was mass-produced for the first time, drastically reducing infection deaths. "The real heroes of the war are the men who carry the stretchers." - Combat Veteran',
     artPrompt: 'ww2 red cross medical tent field hospital ink watercolor sketch'
   },
   'supp_supply': {
-    id: 'supp_supply', name: 'Supply Truck', type: 'support', cost: 2, atk: 0, def: 3, rarity: 'uncommon',
-    desc: 'Passive: All units +1 ATK. Active: Fully Restore Supplies.', activeAbility: 'restore_mana_full',
+    id: 'supp_supply', name: 'Supply Truck', type: 'tactic', cost: 2, atk: 0, def: 0, rarity: 'uncommon',
+    desc: 'Restore 4 Supplies.', effect: 'restore_mana_4',
     history: 'The "Red Ball Express" was a massive truck convoy system that supplied Allied forces moving quickly through Europe after D-Day. At its peak, it operated 5,958 vehicles and carried about 12,500 tons of supplies a day.',
     artPrompt: 'ww2 army truck cargo supplies mud ink watercolor sketch'
   },
   'supp_radar': {
-    id: 'supp_radar', name: 'Radar Station', type: 'support', cost: 2, atk: 0, def: 4, rarity: 'rare',
-    desc: 'Passive: Negate Air Strikes. Active: Target (+1 ATK).', supportEffect: { type: 'buff_atk', val: 1 },
+    id: 'supp_radar', name: 'Radar Station', type: 'support', cost: 2, atk: 0, def: 5, rarity: 'rare',
+    desc: 'Passive: Negate Air Strikes.',
     history: 'RADAR (RAdio Detection And Ranging) gave the RAF a critical advantage in the Battle of Britain, allowing them to scramble fighters to intercept raids. It was a closely guarded secret that changed the nature of warfare.',
     artPrompt: 'ww2 radar antenna dish radio tower ink watercolor sketch'
   },
   'supp_hq': {
-    id: 'supp_hq', name: 'Forward HQ', type: 'support', cost: 5, atk: 0, def: 10, rarity: 'limited',
-    desc: 'Passive: All units +1/+1. Invulnerable.', invulnerable: true,
+    id: 'supp_hq', name: 'Forward HQ', type: 'tactic', cost: 5, atk: 0, def: 0, rarity: 'limited',
+    desc: 'Give all friendly units +1/+1.', effect: 'buff_all_1_1',
     history: 'Field headquarters coordinated vast movements of troops. Communications were key, often using encrypted Enigma machines or Navajo code talkers. "Amateurs talk strategy. Professionals talk logistics." - Gen. Omar Bradley',
     artPrompt: 'ww2 generals map table command tent strategy ink watercolor sketch'
   },

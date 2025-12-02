@@ -25,6 +25,7 @@ export const calculateBuffedBoard = (board) => {
     // FIX: Support units should never get an attack buff
     if (unit.type === 'support') {
       buffAtk = 0;
+      buffDef = 0;
     }
 
     if (buffAtk === 0 && buffDef === 0) return unit;

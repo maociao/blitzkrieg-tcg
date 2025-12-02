@@ -154,7 +154,28 @@ export default function App() {
             showNotif("TEST MODE ACTIVATED: Collection Unlocked!");
           }
         } else if (isResetMode) {
-          // Reset if data deviates from starter
+          // Auto-select first actionable unit on turn start
+          useEffect(() => {
+            if (activeMatch && gameState && !activeMatch.winner) {
+              const isHost = activeMatch.isHost;
+              const myTurn = isHost ? 'host' : 'guest';
+
+              if (gameState.turn === myTurn) {
+                const myBoardKey = isHost ? 'hostBoard' : 'guestBoard';
+                const myBoard = gameState[myBoardKey] || [];
+
+                // Find first combat unit that can attack
+                const firstActionable = myBoard.find(u => u.canAttack && u.type !== 'support');
+                if (firstActionable) {
+                  setSelectedUnitId(firstActionable.instanceId);
+                } else {
+                  setSelectedUnitId(null);
+                }
+              }
+            }
+          }, [gameState?.turn, gameState?.turnCount]); // Re-run when turn changes
+
+          // Listen to match updates from starter
           if (data.credits !== 100 || data.collection.length !== starterDeck.length) {
             await setDoc(userRef, {
               credits: 100,
@@ -861,18 +882,21 @@ export default function App() {
         canAttack: true
       }));
 
-    // Passive: Field Hospital (Heal HQ)
-    const myBoardKey = isHost ? 'hostBoard' : 'guestBoard';
-    const myHpKey = isHost ? 'hostHP' : 'guestHP';
-    const myCurrentBoard = gameState[myBoardKey];
-    let newMyHp = gameState[myHpKey];
-    const medics = myCurrentBoard.filter(u => u.id === 'supp_medic');
-    if (medics.length > 0) {
-      newMyHp = Math.min(newMyHp + medics.length, 20);
-      if (newMyHp > gameState[myHpKey]) {
-        showNotif(`Field Hospital restored ${medics.length} HQ Health!`);
-      }
+    // Passive: Field Hospital (Heal Units at Start of Turn)
+    const fxList = [];
+    const uniqueFxId = Date.now();
+
+    if (nextPlayerBoard.some(u => u.id === 'supp_medic')) {
+      nextPlayerBoard.forEach(u => {
+        if (u.currentHp < u.def && u.type === 'infantry') {
+          u.currentHp += 1;
+          fxList.push({ unitId: u.instanceId, type: 'heal', id: uniqueFxId + Math.random() });
+        }
+      });
     }
+
+    const myHpKey = isHost ? 'hostHP' : 'guestHP';
+    let newMyHp = gameState[myHpKey];
 
     const update = {
       turn: nextTurn,
@@ -883,7 +907,7 @@ export default function App() {
       [nextPlayerBoardKey]: nextPlayerBoard,
       [myHpKey]: newMyHp,
       lastAction: `Turn pass to ${nextTurn}`,
-      lastEffects: []
+      lastEffects: fxList
     };
     const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id);
     await updateDoc(matchRef, update);
@@ -917,7 +941,7 @@ export default function App() {
       ...cardData,
       instanceId: unitId,
       currentHp: cardData.def,
-      canAttack: false,
+      canAttack: cardData.type === 'support', // Supports don't have sleeping sickness (passive only)
       isAbilityUsed: false
     };
 
@@ -977,12 +1001,6 @@ export default function App() {
         return;
       }
       if (cardData.effect === 'restore_mana_1') {
-        const newMana = Math.min(gameState[manaKey] + 1, 10); // Cap at 10? Or allow overflow?
-        // Usually maxMana is the cap for regeneration, but coins can exceed temporarily or just fill up.
-        // Let's just add 1.
-
-        // Let's just add 1.
-
         const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id);
         await updateDoc(matchRef, {
           [handKey]: newHand,
@@ -991,6 +1009,39 @@ export default function App() {
           lastEffects: []
         });
         setTimeout(() => { if (!actualSide) setIsProcessing(false); }, 500);
+        return;
+      }
+      if (cardData.effect === 'restore_mana_4') {
+        const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id);
+        await updateDoc(matchRef, {
+          [handKey]: newHand,
+          [manaKey]: Math.min(gameState[manaKey] + 4, 10),
+          lastAction: `${isHost ? 'Host' : 'Guest'} used Supply Truck!`,
+          lastEffects: []
+        });
+        setTimeout(() => { if (!actualSide) setIsProcessing(false); }, 500);
+        return;
+      }
+      if (cardData.effect === 'buff_all_1_1') {
+        const myBoardKey = isHost ? 'hostBoard' : 'guestBoard';
+        const myBoard = [...gameState[myBoardKey]];
+        const fxList = [];
+        const uniqueFxId = Date.now();
+
+        const updatedBoard = myBoard.map(u => {
+          fxList.push({ unitId: u.instanceId, type: 'buff_def', id: uniqueFxId + Math.random() });
+          return { ...u, atk: u.atk + 1, def: u.def + 1, currentHp: u.currentHp + 1 };
+        });
+
+        const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id);
+        await updateDoc(matchRef, {
+          [handKey]: newHand,
+          [manaKey]: gameState[manaKey] - cardData.cost,
+          [myBoardKey]: updatedBoard,
+          lastAction: `${isHost ? 'Host' : 'Guest'} used Forward HQ!`,
+          lastEffects: fxList
+        });
+        setTimeout(() => { if (!actualSide) setIsProcessing(false); }, 1000);
         return;
       }
     } else {
@@ -1165,12 +1216,15 @@ export default function App() {
     if (explicitAttackerId) {
       attacker = myBoardBuffed.find(u => u.instanceId === explicitAttackerId);
       attackerIndex = myBoardRaw.findIndex(u => u.instanceId === explicitAttackerId);
-    } else if (selectedUnitId) {
-      attacker = myBoardBuffed.find(u => u.instanceId === selectedUnitId);
-      attackerIndex = myBoardRaw.findIndex(u => u.instanceId === selectedUnitId);
-    } else {
-      attacker = myBoardBuffed.find(u => u.canAttack && u.type !== 'support');
-      attackerIndex = myBoardRaw.findIndex(u => u.canAttack && u.type !== 'support');
+    } else { // If no explicitAttackerId, then we rely on selectedUnitId
+      if (selectedUnitId) {
+        attacker = myBoardBuffed.find(u => u.instanceId === selectedUnitId);
+        attackerIndex = myBoardRaw.findIndex(u => u.instanceId === selectedUnitId);
+      } else {
+        // Fallback: Find first actionable combat unit (matches UI default selection)
+        attacker = myBoardBuffed.find(u => u.canAttack && u.type !== 'support');
+        attackerIndex = myBoardRaw.findIndex(u => u.canAttack && u.type !== 'support');
+      }
     }
 
     if (!attacker) {
@@ -1202,34 +1256,14 @@ export default function App() {
     fxList.push({ unitId: attacker.instanceId, type: 'action_attack', id: uniqueFxId });
 
     if (targetIndex === -1) {
-      // Passive: Bunker Intercept
-      const enemyBoardRaw = [...gameState[enemyBoardKey]];
-      const bunkerIndex = enemyBoardRaw.findIndex(u => u.id === 'supp_bunker');
+      const newEnemyHp = gameState[enemyHpKey] - attacker.atk;
+      update[enemyHpKey] = newEnemyHp;
+      update.lastAction = `${attacker.name} attacked Command Post!`;
+      update.lastEffects = fxList;
 
-      if (bunkerIndex !== -1) {
-        const bunker = enemyBoardRaw[bunkerIndex];
-        bunker.currentHp -= attacker.atk; // Attacker uses buffed ATK
-
-        showNotif("Bunker absorbed the attack!");
-        fxList.push({ unitId: bunker.instanceId, type: 'damage', id: uniqueFxId + 1 });
-
-        update[enemyBoardKey] = enemyBoardRaw;
-        update.lastAction = `${attacker.name} hit Bunker (Guard)!`;
-        update.lastEffects = fxList;
-      } else {
-        const newEnemyHp = gameState[enemyHpKey] - attacker.atk;
-        update[enemyHpKey] = newEnemyHp;
-        update.lastAction = `${attacker.name} attacked Command Post!`;
-        update.lastEffects = fxList;
-
-        if (newEnemyHp <= 0) {
-          update.status = 'finished';
-          // Correct Winner Logic: If I am Host (Attacker), I win. If I am Guest (Attacker), I win.
-          // But wait, 'isHost' here is "Am I the attacker?".
-          // If isHost is true, attacker is Host. Winner is Host ID.
-          // If isHost is false, attacker is Guest. Winner is Guest ID.
-          update.winner = isHost ? gameState.hostId : gameState.guestId;
-        }
+      if (newEnemyHp <= 0) {
+        update.status = 'finished';
+        update.winner = isHost ? gameState.hostId : gameState.guestId;
       }
     } else {
       const enemyBoardRaw = [...gameState[enemyBoardKey]];
@@ -1247,25 +1281,46 @@ export default function App() {
         return;
       }
 
-      target.currentHp -= attacker.atk;
-      fxList.push({ unitId: target.instanceId, type: 'damage', id: uniqueFxId + 2 });
+      // Passive: Bunker Intercept (Infantry Only)
+      const bunkerIndex = enemyBoardRaw.findIndex(u => u.id === 'supp_bunker');
+      if (target.type === 'infantry' && bunkerIndex !== -1 && target.id !== 'supp_bunker') {
+        const bunker = enemyBoardRaw[bunkerIndex];
+        bunker.currentHp -= attacker.atk;
 
-      if (target.currentHp > 0) {
-        // Recoil
-        if (attackerIndex !== -1) {
-          myBoardRaw[attackerIndex].currentHp -= targetBuffed.atk; // Target uses buffed ATK
-          // FIX 1: Show recoil damage ONLY if enemy had attack power
-          if (targetBuffed.atk > 0) {
-            fxList.push({ unitId: attacker.instanceId, type: 'damage', id: uniqueFxId + 3 });
+        showNotif("Bunker absorbed the attack!");
+        fxList.push({ unitId: bunker.instanceId, type: 'damage', id: uniqueFxId + 1 });
+
+        update.lastAction = `${attacker.name} hit Bunker (Guard)!`;
+      } else {
+        target.currentHp -= attacker.atk;
+        fxList.push({ unitId: target.instanceId, type: 'damage', id: uniqueFxId + 2 });
+
+        if (target.currentHp > 0) {
+          // Recoil
+          if (attackerIndex !== -1) {
+            // Passive: Bunker Intercept Recoil (Infantry Only)
+            const myBunkerIndex = myBoardRaw.findIndex(u => u.id === 'supp_bunker');
+
+            if (attacker.type === 'infantry' && myBunkerIndex !== -1 && attacker.id !== 'supp_bunker') {
+              const bunker = myBoardRaw[myBunkerIndex];
+              bunker.currentHp -= targetBuffed.atk;
+              if (targetBuffed.atk > 0) {
+                showNotif("Bunker absorbed return fire!");
+                fxList.push({ unitId: bunker.instanceId, type: 'damage', id: uniqueFxId + 3 });
+              }
+            } else {
+              myBoardRaw[attackerIndex].currentHp -= targetBuffed.atk; // Target uses buffed ATK
+              if (targetBuffed.atk > 0) {
+                fxList.push({ unitId: attacker.instanceId, type: 'damage', id: uniqueFxId + 3 });
+              }
+            }
           }
         }
+        update.lastAction = `${attacker.name} engaged ${target.name}`;
       }
 
-      // FIX 2: DELAYED DEATH - Keep units in array for animation
       update[enemyBoardKey] = enemyBoardRaw;
       update[myBoardKey] = myBoardRaw;
-
-      update.lastAction = `${attacker.name} engaged ${target.name}`;
       update.lastEffects = fxList;
     }
 
@@ -1312,7 +1367,15 @@ export default function App() {
       }
 
       if (selectedUnit && selectedUnit.type === 'support') {
-        handleSupportAction(selectedUnit, unit, index);
+        // Supports are passive now, so they shouldn't be selected for actions usually.
+        // But if we had active abilities, this is where we'd handle it.
+        // For now, just deselect if clicking another support?
+        // Actually, let's just allow switching selection if it was a support (though we prevent selecting supports below)
+      }
+
+      // FIX: Prevent selecting Support units (they are passive)
+      if (unit.type === 'support') {
+        // showNotif("Support units are passive.");
         return;
       }
 

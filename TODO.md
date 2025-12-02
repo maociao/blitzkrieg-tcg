@@ -36,6 +36,9 @@
 - [ ] Concrete bunker and Field Hospital buffs only apply to infantry units
 - [ ] New engineer support unit heals tanks units
 - [ ] New hangar support unit heals air units
+- [ ] New tactic card "Reinforcements" that allows a player to draw 2 cards from their deck.
+- [ ] New 2 cost tactic card "Blitzkrieg" that removes sleeping sickness from all tank units.
+- [ ] New 1 cost tactic card "Airborne Operation" that removes sleeping sickness from all infantry units.
 
 ### Card effect adjustments
 - [x] Reduce Radar Station cost to 3
@@ -50,8 +53,13 @@
 - [X] Reduce defense of Radar Station to 4
 - [X] Remove the passive effect of commanders
 - [X] Increase p-51 Mustang defense to 4
-- [ ] Reverse the passive/active ability of the field hospital (undecided)
-- [ ] Supply truck passive only applies to ground units (infantry, tanks, engineers, commanders)
+- [ ] Remove active abilities from support cards
+- [ ] Change Supply Truck to a tactic card that restores up to 4 supplies (click on card to reveal "use" button) and remove the passive ability.
+- [ ] Change Forward HQ to a tactic card that gives all units +1/+1 and remove the passive ability.
+- [ ] Change Field Hospital passive to heal all units +1 up to max HP each round it is deployed on the field.
+- [ ] Change Concrete Bunker passive to absorb all infantry damage until it is destroyed.
+- [ ] Increase cost of Tiger tanks to 5
+
 
 ### New Passive cards
 - [x] While a Concrete Bunker is deployed it takes damage instead of the HQ when the HQ is targeted

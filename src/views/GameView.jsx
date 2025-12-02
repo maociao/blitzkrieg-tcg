@@ -125,21 +125,9 @@ const GameView = ({
 
       <div className="h-64 bg-gray-950 border-t-4 border-gray-800 flex relative z-30 shadow-2xl">
         <div className="flex-none w-28 flex flex-col justify-center gap-2 p-2 border-r border-gray-800 bg-gray-900/95 z-40">
-          {/* Supplies Panel - Handles Active Ability Click */}
-          <div
-            onClick={() => {
-              if (selectedUnit && selectedUnit.activeAbility && !selectedUnit.isAbilityUsed && isMyTurn) {
-                handleUseAbility(selectedUnit);
-              }
-            }}
-            className={`border p-2 rounded text-center backdrop-blur-md transition-all duration-300 ${(selectedUnit && selectedUnit.activeAbility && !selectedUnit.isAbilityUsed && isMyTurn)
-              ? 'bg-purple-900/50 border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.5)] cursor-pointer hover:bg-purple-800/60 animate-pulse'
-              : 'bg-blue-900/30 border-blue-600/50 shadow-[0_0_15px_rgba(37,99,235,0.2)]'
-              }`}
-          >
-            <div className={`text-[10px] uppercase tracking-widest ${(selectedUnit && selectedUnit.activeAbility && !selectedUnit.isAbilityUsed) ? 'text-purple-300 font-bold' : 'text-blue-300'}`}>
-              {(selectedUnit && selectedUnit.activeAbility && !selectedUnit.isAbilityUsed && isMyTurn) ? 'CLICK TO RESTORE' : 'Supplies'}
-            </div>
+          {/* Supplies Panel */}
+          <div className="border p-2 rounded text-center backdrop-blur-md transition-all duration-300 bg-blue-900/30 border-blue-600/50 shadow-[0_0_15px_rgba(37,99,235,0.2)]">
+            <div className="text-[10px] uppercase tracking-widest text-blue-300">Supplies</div>
             <div className="text-3xl font-black text-white">{myMana} <span className="text-sm text-gray-400 font-normal">/ {gameState.maxMana}</span></div>
           </div>
 
