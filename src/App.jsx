@@ -139,7 +139,7 @@ export default function App() {
       const starterDeck = [
         'inf_rifle', 'inf_rifle', 'inf_rifle',
         'inf_sniper', 'tank_sherman', 'air_spitfire',
-        'supp_bunker', 'supp_medic'
+        'supp_bunker', 'supp_medic', 'supp_supply'
       ];
 
       if (docSnap.exists()) {
@@ -415,21 +415,20 @@ export default function App() {
       const combatCards = allCards.filter(id => CARD_DATABASE[id].type !== 'support');
       const supportCards = allCards.filter(id => CARD_DATABASE[id].type === 'support');
 
-      // Simple random hand generation for AI (Unique Supports, 5 Combat)
+      // Simple random hand generation for AI (Unique Supports, 6 Combat)
       let aiHand = [];
 
       // Select 2 Unique Support Cards
-      // Deduplicate support cards from collection to ensure AI doesn't get 2 of the same
       const uniqueSupportCards = [...new Set(supportCards)];
       const shuffledSupports = uniqueSupportCards.sort(() => 0.5 - Math.random());
       aiHand = [...aiHand, ...shuffledSupports.slice(0, 2)];
 
-      // Select 5 Combat Cards (with replacement allowed, as per original AI logic)
+      // Select 6 Combat Cards (Non-Support)
       if (combatCards.length > 0) {
-        for (let i = 0; i < 5; i++) aiHand.push(combatCards[Math.floor(Math.random() * combatCards.length)]);
+        for (let i = 0; i < 6; i++) aiHand.push(combatCards[Math.floor(Math.random() * combatCards.length)]);
       } else {
         // Fallback if no combat cards (unlikely)
-        aiHand = [...aiHand, 'inf_rifle', 'inf_rifle', 'inf_rifle', 'inf_rifle', 'inf_rifle'];
+        aiHand = [...aiHand, 'inf_rifle', 'inf_rifle', 'inf_rifle', 'inf_rifle', 'inf_rifle', 'inf_rifle'];
       }
 
       // Shuffle final hand
@@ -623,7 +622,7 @@ export default function App() {
 
       let hand = [];
       const supportsNeeded = 2;
-      const combatNeeded = 5; // Increased to 5
+      const combatNeeded = 6;
 
       hand = [...hand, ...uniqueSupportCards.slice(0, supportsNeeded)];
       hand = [...hand, ...combatCards.slice(0, combatNeeded)];
@@ -1022,6 +1021,17 @@ export default function App() {
         setTimeout(() => { if (!actualSide) setIsProcessing(false); }, 500);
         return;
       }
+      if (cardData.effect === 'restore_mana_full') {
+        const matchRef = doc(db, 'artifacts', appId, 'public', 'data', 'matches', activeMatch.id);
+        await updateDoc(matchRef, {
+          [handKey]: newHand,
+          [manaKey]: Math.min(gameState.maxMana, 10),
+          lastAction: `${isHost ? 'Host' : 'Guest'} used Supply Truck!`,
+          lastEffects: []
+        });
+        setTimeout(() => { if (!actualSide) setIsProcessing(false); }, 500);
+        return;
+      }
       if (cardData.effect === 'buff_all_1_1') {
         const myBoardKey = isHost ? 'hostBoard' : 'guestBoard';
         const myBoard = [...gameState[myBoardKey]];
@@ -1356,6 +1366,9 @@ export default function App() {
       return;
     }
 
+    // FIX: Prevent selecting Support units (they are passive)
+    if (unit.type === 'support') return;
+
     if (selectedUnitId) {
       const isHost = activeMatch.isHost;
       const myBoard = isHost ? gameState.hostBoard : gameState.guestBoard;
@@ -1374,21 +1387,10 @@ export default function App() {
       }
 
       // FIX: Prevent selecting Support units (they are passive)
-      if (unit.type === 'support') {
-        // showNotif("Support units are passive.");
-        return;
-      }
 
-      if (unit.type === 'support' && unit.isAbilityUsed) {
-        showNotif("This unit is depleted.");
-        return;
-      }
       setSelectedUnitId(unit.instanceId);
     } else {
-      if (unit.type === 'support' && unit.isAbilityUsed) {
-        showNotif("This unit is depleted.");
-        return;
-      }
+
       setSelectedUnitId(unit.instanceId);
     }
   };

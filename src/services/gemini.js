@@ -59,7 +59,8 @@ export const getAiMove = async (gameState, aiHand, aiBoard, playerBoard) => {
     lastAction: gameState.lastAction,
     aiHand: aiHand.map(id => serializeCard(id)),
     aiBoard: aiBoard.map((u, i) => serializeUnit(u, i)),
-    playerBoard: playerBoard.map((u, i) => serializeUnit(u, i))
+    playerBoard: playerBoard.map((u, i) => serializeUnit(u, i)),
+    turnCount: gameState.turnCount || 1
   };
 
   // 2. Construct Prompt
@@ -68,13 +69,15 @@ export const getAiMove = async (gameState, aiHand, aiBoard, playerBoard) => {
     Your goal is to defeat the opponent (reduce PlayerHP to 0).
     
     **Rules:**
-    - Mana: Costs are fixed. You have ${stateSummary.aiMana} mana. You must have enough "aiMana" to cover the "cost" of playing a card.
+    - Mana supply: Supply is fixed per round. Each round the supply increases by 1. Any buffs that increase supply do not carry over to the next round. 
+    - Turn Count: It is currently turn ${stateSummary.turnCount}. Use this to gauge the pace of the game. Early game (turns 1-3) focus on building presence. Late game (turn 6+) focus on finishing.
+    - Mana costs: Each card has a mana cost associated with it. You have ${stateSummary.aiMana} mana. You must have enough "aiMana" to cover the "cost" of playing a card.
     - Attack: Units with canAttack=true can ATTACK enemy units or the HQ (face).
-    - Counter Attack: If a defending unit is not destroyed in an attack, the defending unit is can counter attack the attacking unit. The same passive support effect applies to the counter attack as a normal attack.
+    - Counter Attack: If a defending unit is not destroyed in an attack, the defending unit can counter attack the attacking unit. The same passive support effects apply to the counter attack as a normal attack.
     - Passive Support: Some units have passive abilities that provide some benefit to other units. These benefits apply for as long as the unit is deployed.
     - Tactics: Tactic cards (like Supply Truck, Air Strike) are one-time use effects that are discarded after play.
-    - Sleeping Sickness: Cards cannot be used during the turn in which they are played. The only exception are Instant Action cards like "Air Raid" which do not have "sleeping sickness" when played.
-    - Hand Limit: Each player starts with 2 unique support cards and 5 combat cards. No new cards are received once hand runs out.
+    - Sleeping Sickness: Cards cannot be used during the turn in which they are played. The only exception are Tactics cards which do not have "sleeping sickness" when played.
+    - Hand Limit: Each player starts with 2 unique support cards and 6 combat cards. No new cards are received once hand runs out.
     - Winning: playerHP <= 0. Player surrenders.
 
     **Current State:**
@@ -83,7 +86,7 @@ export const getAiMove = async (gameState, aiHand, aiBoard, playerBoard) => {
     **Instructions:**
     - Analyze the board and hand.
     - Choose the BEST single move.
-    - Prioritize protecting your units and defeating the opponent's HQ. 
+    - Prioritize defending your HQ and defeating the opponent's HQ. 
     - Use units wisely, anticipating the opponent's next move. Ignore enemy bunkers.
     - Valid Actions:
       1. "PLAY_CARD": { "cardId": "string", "index": number (hand index) }

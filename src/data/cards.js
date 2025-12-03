@@ -76,8 +76,8 @@ export const CARD_DATABASE = {
     artPrompt: 'ww2 red cross medical tent field hospital ink watercolor sketch'
   },
   'supp_supply': {
-    id: 'supp_supply', name: 'Supply Truck', type: 'tactic', cost: 2, atk: 0, def: 0, rarity: 'uncommon',
-    desc: 'Restore 4 Supplies.', effect: 'restore_mana_4',
+    id: 'supp_supply', name: 'Supply Truck', type: 'tactic', cost: 0, atk: 0, def: 0, rarity: 'limited',
+    desc: 'Restore Supplies.', effect: 'restore_mana_full',
     history: 'The "Red Ball Express" was a massive truck convoy system that supplied Allied forces moving quickly through Europe after D-Day. At its peak, it operated 5,958 vehicles and carried about 12,500 tons of supplies a day.',
     artPrompt: 'ww2 army truck cargo supplies mud ink watercolor sketch'
   },
